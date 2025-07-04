@@ -1,0 +1,6 @@
+etl.log
+etl_scheduler.log
+*.pbix
+.env
+__pycache__/
+*.pyc
