@@ -42,3 +42,25 @@ SELECT * FROM raw_cafe_sales LIMIT 5;
 - Verified that rows matching "Cake" logic were properly filled
 
 - 869 rows remain with unresolved item values for future review
+
+
+### ✅ Week 2: Contextual Item Repair (Expanded)
+
+- Expanded the `CASE` logic in `staging_cafe_sales` to cover additional `item` categories:
+  - `Cake`, `Coffee`, `Cookie`, `Juice`, `Salad`, `Sandwich`, `Smoothie`, `Tea`
+- Logic uses combinations of:
+  - `price_per_unit`, `payment_method`, and `location`
+- Cleaned rows based on price-based inference
+- Remaining rows with ambiguous or invalid `item` values: **724**
+- These will be investigated later for deeper repair or filtering
+
+#### Sample CASE logic:
+```sql
+CASE
+  WHEN (item IS NULL OR item IN ('UNKNOWN', 'ERROR', ''))
+       AND price_per_unit = '2.0'
+       AND payment_method IN (...) 
+       AND location IN (...) 
+  THEN 'Coffee'
+  ...
+
