@@ -57,8 +57,30 @@ SELECT
 		
         ELSE NULLIF(NULLIF(NULLIF(item, 'ERROR'), 'UNKNOWN'), '')
     END AS item,
-	quantity,
-    price_per_unit,
+    
+ CASE
+	 
+ 	WHEN quantity IN ('ERROR', 'UNKNOWN', '')
+       AND price_per_unit NOT IN ('ERROR', 'UNKNOWN', '')
+       AND total_spent NOT IN ('ERROR', 'UNKNOWN', '')
+       AND price_per_unit::NUMERIC != 0 --to avoid divide-by-zero erros
+  	THEN (CAST(total_spent AS NUMERIC) / CAST(price_per_unit AS NUMERIC))::INT  -- round to nearest integer
+  	
+  	ELSE CAST(NULLIF(NULLIF(NULLIF(quantity, 'ERROR'), 'UNKNOWN'), '') AS INTEGER)
+  	
+END AS quantity,
+
+CASE
+	 
+ 	WHEN (price_per_unit is null or price_per_unit IN ('ERROR', 'UNKNOWN', ''))
+       AND quantity NOT IN ('ERROR', 'UNKNOWN', '')
+       AND total_spent NOT IN ('ERROR', 'UNKNOWN', '')
+       AND quantity::NUMERIC != 0 --to avoid divide-by-zero erros
+  	THEN (CAST(total_spent AS NUMERIC) / CAST(quantity AS NUMERIC))::INT  -- round to nearest integer
+  	
+  	ELSE CAST(NULLIF(NULLIF(NULLIF(quantity, 'ERROR'), 'UNKNOWN'), '') AS INTEGER)
+  	
+END as price_per_unit,
     total_spent,
     payment_method,
     location,

@@ -63,4 +63,48 @@ CASE
        AND location IN (...) 
   THEN 'Coffee'
   ...
+### 🧪 Week 2.5: Quantity Column Repair (Contextual)
+
+- Identified 479 rows with invalid `quantity` values: `'ERROR'`, `'UNKNOWN'`, or blank.
+- Further narrowed to 441 rows where:
+  - `price_per_unit` and `total_spent` are valid (numeric)
+  - Formula: `quantity = total_spent / price_per_unit` holds true
+
+#### SQL Analysis:
+```sql
+SELECT *
+FROM staging_cafe_sales
+WHERE quantity IN ('UNKNOWN', '', 'ERROR')
+  AND price_per_unit NOT IN ('UNKNOWN', '', 'ERROR')
+  AND total_spent NOT IN ('UNKNOWN', '', 'ERROR');
+  
+### 🧪 Week 2.6: Quantity Column Repair (Calculated Logic)
+
+- Identified 479 rows where `quantity` was invalid: `'ERROR'`, `'UNKNOWN'`, or blank.
+- Further narrowed to 441 rows where:
+  - `price_per_unit` and `total_spent` were valid
+  - `quantity` could be derived using:
+    ```sql
+    quantity = total_spent / price_per_unit
+    ```
+
+- Updated the staging layer to include a new `CASE` expression for `quantity`:
+    - Replaced dirty values with the calculated result (rounded to integer)
+    - Preserved clean values by casting directly
+    - Remaining dirty rows (`38`) left as `NULL` for now (due to insufficient info)
+
+#### ✅ Validated with:
+```sql
+SELECT COUNT(*) FROM staging_cafe_sales WHERE quantity IS NULL;  -- Result: 38
+SELECT COUNT(*) FROM staging_cafe_sales WHERE quantity IS NOT NULL;  -- Successfully repaired remainder
+
+### 💵 Week 2.7: Price Per Unit Repair (Calculated Logic)
+
+- Identified rows where `price_per_unit` was missing or invalid (`NULL`, `'ERROR'`, `'UNKNOWN'`)there were 533 rows
+- For rows with valid `quantity` and `total_spent`, calculated missing values using: after which the count is 479 rows
+  
+  ```sql
+  price_per_unit = total_spent / quantity
+  
+
 
