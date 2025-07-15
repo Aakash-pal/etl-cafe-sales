@@ -105,6 +105,42 @@ SELECT COUNT(*) FROM staging_cafe_sales WHERE quantity IS NOT NULL;  -- Successf
   
   ```sql
   price_per_unit = total_spent / quantity
-  
+
+### 🧭 Week 2.8: Location Column Repair (Rule-Based Inference)
+
+- Identified that `location` had numerous invalid entries such as `'ERROR'`, `'UNKNOWN'`, `''`, and `NULL`
+- Developed rule-based logic using combinations of `item` and `payment_method` to infer the most likely `location`
+- Used frequency analysis via grouped queries to determine dominant patterns
+- Created a unified `CASE` statement to fill in missing values based on business logic
+
+#### ✅ Key Rules Applied:
+
+| Payment Method  | Items                           | Inferred Location |
+|-----------------|----------------------------------|-------------------|
+| Cash            | Cake, Juice, Salad, Smoothie     | In-store          |
+| Cash            | Coffee, Cookie, Sandwich, Tea    | Takeaway          |
+| Credit Card     | Cookie, Juice, Salad, Sandwich   | In-store          |
+| Credit Card     | Coffee, Cake, Smoothie, Tea      | Takeaway          |
+| Digital Wallet  | Cake, Juice, Sandwich            | In-store          |
+| Digital Wallet  | Coffee, Cookie, Salad, Tea, Smoothie | Takeaway     |
+
+#### 🧠 CASE Snippet:
+```sql
+CASE
+  WHEN (location IS NULL OR location IN ('', 'UNKNOWN', 'ERROR'))
+       AND item IN ('Cake', 'Juice', 'Salad', 'Smoothie') 
+       AND payment_method = 'Cash'
+  THEN 'In-store'
+  ...
+  ELSE NULLIF(NULLIF(NULLIF(location, 'ERROR'), 'UNKNOWN'), '')
+END AS location
+
+📊 Impact of Transformation:
+🔍 Initial dirty location rows: 3,961
+
+✅ Remaining dirty rows after transformation: 1,555
+
+Repaired over 60% of invalid locations using pattern-based rules
+
 
 
