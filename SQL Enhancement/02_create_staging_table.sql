@@ -114,5 +114,13 @@ CASE
     THEN 'Takeaway'
     ELSE NULLIF(NULLIF(NULLIF(location, 'ERROR'), 'UNKNOWN'), '')
 END AS location,
-    transaction_date
+
+  -- Contextual cleanup of Location column
+CASE
+    WHEN transaction_date IS NULL OR transaction_date IN ('ERROR', 'UNKNOWN', '')
+    THEN TO_DATE('1900-01-01', 'YYYY-MM-DD')
+
+    ELSE TO_DATE(transaction_date, 'YYYY-MM-DD')
+END AS transaction_date,
+
 FROM raw_cafe_sales;

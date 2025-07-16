@@ -142,5 +142,21 @@ END AS location
 
 Repaired over 60% of invalid locations using pattern-based rules
 
+### 📅 Week 2.9: Transaction Date Cleaning & Repair
+
+- The `transaction_date` column contained 460 invalid or missing entries (`'ERROR'`, `'UNKNOWN'`, `''`, or `NULL`)
+- Analyzed value distribution by item and date, but found no consistent patterns for data-driven inference
+- To preserve data integrity and auditability, applied industry-standard placeholder repair strategy
+- A format audit showed that **100% of valid entries (9,540 rows)** used the `YYYY-MM-DD` format, with no alternate or mixed styles
+
+
+#### 🛠️ Final Repair Logic:
+```sql
+CASE
+  WHEN transaction_date IS NULL OR transaction_date IN ('ERROR', 'UNKNOWN', '')
+  THEN TO_DATE('1900-01-01', 'YYYY-MM-DD')  -- Placeholder for unknown dates
+
+  ELSE TO_DATE(transaction_date, 'YYYY-MM-DD')  -- Clean values
+END AS transaction_date
 
 
