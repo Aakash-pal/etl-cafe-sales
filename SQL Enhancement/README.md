@@ -44,7 +44,7 @@ SELECT * FROM raw_cafe_sales LIMIT 5;
 - 869 rows remain with unresolved item values for future review
 
 
-### ✅ Week 2: Contextual Item Repair (Expanded)
+### ✅ Week 2.1: Contextual Item Repair (Expanded)
 
 - Expanded the `CASE` logic in `staging_cafe_sales` to cover additional `item` categories:
   - `Cake`, `Coffee`, `Cookie`, `Juice`, `Salad`, `Sandwich`, `Smoothie`, `Tea`
@@ -63,7 +63,7 @@ CASE
        AND location IN (...) 
   THEN 'Coffee'
   ...
-### 🧪 Week 2.5: Quantity Column Repair (Contextual)
+### 🧪 Week 2.2: Quantity Column Repair (Contextual)
 
 - Identified 479 rows with invalid `quantity` values: `'ERROR'`, `'UNKNOWN'`, or blank.
 - Further narrowed to 441 rows where:
@@ -78,7 +78,7 @@ WHERE quantity IN ('UNKNOWN', '', 'ERROR')
   AND price_per_unit NOT IN ('UNKNOWN', '', 'ERROR')
   AND total_spent NOT IN ('UNKNOWN', '', 'ERROR');
   
-### 🧪 Week 2.6: Quantity Column Repair (Calculated Logic)
+### 🧪 Week 2.3: Quantity Column Repair (Calculated Logic)
 
 - Identified 479 rows where `quantity` was invalid: `'ERROR'`, `'UNKNOWN'`, or blank.
 - Further narrowed to 441 rows where:
@@ -98,7 +98,7 @@ WHERE quantity IN ('UNKNOWN', '', 'ERROR')
 SELECT COUNT(*) FROM staging_cafe_sales WHERE quantity IS NULL;  -- Result: 38
 SELECT COUNT(*) FROM staging_cafe_sales WHERE quantity IS NOT NULL;  -- Successfully repaired remainder
 
-### 💵 Week 2.7: Price Per Unit Repair (Calculated Logic)
+### 💵 Week 2.4: Price Per Unit Repair (Calculated Logic)
 
 - Identified rows where `price_per_unit` was missing or invalid (`NULL`, `'ERROR'`, `'UNKNOWN'`)there were 533 rows
 - For rows with valid `quantity` and `total_spent`, calculated missing values using: after which the count is 479 rows
@@ -106,7 +106,7 @@ SELECT COUNT(*) FROM staging_cafe_sales WHERE quantity IS NOT NULL;  -- Successf
   ```sql
   price_per_unit = total_spent / quantity
 
-### 🧭 Week 2.8: Location Column Repair (Rule-Based Inference)
+### 🧭 Week 2.5: Location Column Repair (Rule-Based Inference)
 
 - Identified that `location` had numerous invalid entries such as `'ERROR'`, `'UNKNOWN'`, `''`, and `NULL`
 - Developed rule-based logic using combinations of `item` and `payment_method` to infer the most likely `location`
@@ -142,7 +142,7 @@ END AS location
 
 Repaired over 60% of invalid locations using pattern-based rules
 
-### 📅 Week 2.9: Transaction Date Cleaning & Repair
+### 📅 Week 2.6: Transaction Date Cleaning & Repair
 
 - The `transaction_date` column contained 460 invalid or missing entries (`'ERROR'`, `'UNKNOWN'`, `''`, or `NULL`)
 - Analyzed value distribution by item and date, but found no consistent patterns for data-driven inference
@@ -158,5 +158,22 @@ CASE
 
   ELSE TO_DATE(transaction_date, 'YYYY-MM-DD')  -- Clean values
 END AS transaction_date
+
+### 💳 Week 2.7: Payment Method Cleaning & Inference
+
+- The `payment_method` column contained 3,178 invalid or missing values (`'ERROR'`, `'UNKNOWN'`, `''`, or `NULL`)
+- Used rule-based inference logic with `item` and `location` fields to repair values
+- Grouped rows by common transaction patterns to identify dominant combinations
+- Applied explicit mapping rules for both `In-store` and `Takeaway` contexts after Transformation there were 1478 rows with bad data.
+
+#### 🛠️ Final CASE Logic (Partial View):
+```sql
+CASE 
+  WHEN payment_method IN ('', 'UNKNOWN', 'ERROR') AND item IN (...) AND location = 'In-store'
+  THEN 'Cash'
+  ...
+  ELSE NULLIF(NULLIF(NULLIF(payment_method, 'UNKNOWN'), 'ERROR'), '')
+END AS payment_method
+
 
 

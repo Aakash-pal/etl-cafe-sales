@@ -84,9 +84,37 @@ CASE
   	
 END as price_per_unit,
     total_spent,
-    payment_method,
+
+    -- Contextual cleanup of payment_method column    
+CASE
+    WHEN (payment_method IS NULL OR payment_method IN ('', 'UNKNOWN', 'ERROR'))
+         AND item IN ('Cake', 'Coffee', 'Salad','Smoothie') AND location = 'In-store'
+    THEN 'Cash'
+
+    WHEN (payment_method IS NULL OR payment_method IN ('', 'UNKNOWN', 'ERROR'))
+         AND item IN ('Cookie', 'Juice','Sandwich') AND location = 'In-store'
+    THEN 'Credit Card'
+
+    WHEN (payment_method IS NULL OR payment_method IN ('', 'UNKNOWN', 'ERROR'))
+         AND item IN ('Tea') AND location = 'In-store'
+    THEN 'Digital Wallet'
 	
-    -- Contextual cleanup of Location column
+	WHEN (payment_method IS NULL OR payment_method IN ('', 'UNKNOWN', 'ERROR'))
+         AND item IN ('Coffee', 'Salad', 'Cookie', 'Juice') AND location = 'Takeaway'
+    THEN 'Digital Wallet'
+	
+	WHEN (payment_method IS NULL OR payment_method IN ('', 'UNKNOWN', 'ERROR'))
+         AND item IN ('Cake', 'Smoothie') AND location = 'Takeaway'
+    THEN 'Credit Card'
+	
+	WHEN (payment_method IS NULL OR payment_method IN ('', 'UNKNOWN', 'ERROR'))
+         AND item IN ('Sandwich', 'Tea') AND location = 'Takeaway'
+    THEN 'Cash'
+
+    ELSE NULLIF(NULLIF(NULLIF(payment_method, 'UNKNOWN'), 'ERROR'), '')
+END AS payment_method,
+	
+    -- Contextual cleanup of location column
 CASE
     WHEN (location IS NULL OR location IN ('', 'UNKNOWN', 'ERROR'))
          AND item IN ('Cake', 'Juice', 'Salad', 'Smoothie') 
@@ -115,12 +143,12 @@ CASE
     ELSE NULLIF(NULLIF(NULLIF(location, 'ERROR'), 'UNKNOWN'), '')
 END AS location,
 
-  -- Contextual cleanup of Location column
+  -- Contextual cleanup of transaction_date column
 CASE
     WHEN transaction_date IS NULL OR transaction_date IN ('ERROR', 'UNKNOWN', '')
     THEN TO_DATE('1900-01-01', 'YYYY-MM-DD')
 
     ELSE TO_DATE(transaction_date, 'YYYY-MM-DD')
-END AS transaction_date,
+END AS transaction_date
 
 FROM raw_cafe_sales;
