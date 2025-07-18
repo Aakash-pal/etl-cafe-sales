@@ -176,4 +176,68 @@ CASE
 END AS payment_method
 
 
+###💰 Week 2.8: Total Spent Cleaning & Calculation
+The total_spent column initially contained 502 invalid or missing values ('ERROR', 'UNKNOWN', '', or NULL)
 
+Used derived calculation logic based on valid quantity and price_per_unit fields
+
+Ensured numeric safety by casting supporting fields to NUMERIC type after filtering out invalid strings
+
+Confirmed that quantity * price_per_unit provides accurate estimates for missing total_spent values
+
+After transformation, 462 rows were successfully repaired, leaving only 40 rows unrepaired due to invalid or missing values in dependent fields
+
+🛠️ Final CASE Logic (Simplified View):
+sql
+Copy
+Edit
+CASE
+  WHEN (total_spent IS NULL OR total_spent IN ('', 'UNKNOWN', 'ERROR'))
+    AND quantity IS NOT NULL
+    AND price_per_unit IS NOT NULL
+  THEN (CAST(price_per_unit AS NUMERIC) * CAST(quantity AS NUMERIC))::NUMERIC
+
+  WHEN total_spent NOT IN ('ERROR', 'UNKNOWN', '')
+  THEN CAST(total_spent AS NUMERIC)
+
+  ELSE NULL
+END AS total_spent
+
+###💰 Week 2.9: Price Per Unit Cleaning & Repair
+The price_per_unit column originally had 482 invalid or missing entries ('ERROR', 'UNKNOWN', '', or NULL)
+
+Initial logic erroneously cast decimal values to integers, leading to incorrect values (e.g., 1.5 → 2)
+
+Further analysis revealed that valid entries were being overwritten even when no transformation was needed
+
+Refined logic now:
+
+Only targets truly invalid values
+
+Preserves clean values without alteration
+
+Ensures decimal precision (e.g., 1.5 for Tea, 2.0 for Coffee)
+
+After applying the updated transformation, only 37 invalid entries remained, primarily due to rows where supporting fields like quantity or total_spent were still invalid
+
+🛠️ Final Repair Logic (for price_per_unit):
+sql
+Copy
+Edit
+CASE 
+  WHEN (price_per_unit IS NULL OR price_per_unit IN ('ERROR', 'UNKNOWN', ''))
+       AND quantity IS NOT NULL AND total_spent IS NOT NULL
+       AND NULLIF(quantity, '') ~ '^[0-9]+$'
+       AND NULLIF(total_spent, '') ~ '^[0-9\.]+$'
+  THEN ROUND(CAST(total_spent AS NUMERIC) / CAST(quantity AS NUMERIC), 2)
+
+  WHEN price_per_unit NOT IN ('ERROR', 'UNKNOWN', '')
+  THEN CAST(price_per_unit AS NUMERIC)
+
+  ELSE NULL
+END AS price_per_unit
+📊 Post-Transformation Summary
+Stage	Count
+Invalid values before transformation	482
+Remaining invalid values after transformation	37
+Decimal precision restored (e.g., Tea = 1.5)	✅ Confirmed

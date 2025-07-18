@@ -72,18 +72,34 @@ SELECT
 END AS quantity,
 
     -- Contextual cleanup of price_per_unit column
+CASE 
+	
+  WHEN (price_per_unit IS NULL OR price_per_unit IN ('ERROR', 'UNKNOWN', ''))
+       AND quantity IS NOT NULL AND total_spent IS NOT NULL
+       AND NULLIF(quantity, '') ~ '^[0-9]+$'
+       AND NULLIF(total_spent, '') ~ '^[0-9\.]+$'
+  THEN ROUND(CAST(total_spent AS NUMERIC) / CAST(quantity AS NUMERIC), 2)
+
+  WHEN price_per_unit NOT IN ('ERROR', 'UNKNOWN', '')
+  THEN CAST(price_per_unit AS NUMERIC)
+
+  ELSE null
+  
+END AS price_per_unit,
+
+    -- Contextual cleanup of total_spent column  
 CASE
-	 
- 	WHEN (price_per_unit is null or price_per_unit IN ('ERROR', 'UNKNOWN', ''))
-       AND quantity NOT IN ('ERROR', 'UNKNOWN', '')
-       AND total_spent NOT IN ('ERROR', 'UNKNOWN', '')
-       AND quantity::NUMERIC != 0 --to avoid divide-by-zero erros
-  	THEN (CAST(total_spent AS NUMERIC) / CAST(quantity AS NUMERIC))::INT  -- round to nearest integer
-  	
-  	ELSE CAST(NULLIF(NULLIF(NULLIF(quantity, 'ERROR'), 'UNKNOWN'), '') AS INTEGER)
-  	
-END as price_per_unit,
-    total_spent,
+    WHEN (total_spent IS NULL OR total_spent IN ('', 'UNKNOWN', 'ERROR'))
+         AND quantity ~ '^\d+(\.\d+)?$'
+         AND price_per_unit ~ '^\d+(\.\d+)?$'
+    THEN ROUND(CAST(quantity AS NUMERIC) * CAST(price_per_unit AS NUMERIC), 2)
+
+    WHEN total_spent ~ '^\d+(\.\d+)?$'
+    THEN CAST(total_spent AS NUMERIC)
+
+    ELSE NULL
+END AS total_spent,
+
 
     -- Contextual cleanup of payment_method column    
 CASE
@@ -114,7 +130,7 @@ CASE
     ELSE NULLIF(NULLIF(NULLIF(payment_method, 'UNKNOWN'), 'ERROR'), '')
 END AS payment_method,
 	
-    -- Contextual cleanup of location column
+    -- Contextual cleanup of Location column
 CASE
     WHEN (location IS NULL OR location IN ('', 'UNKNOWN', 'ERROR'))
          AND item IN ('Cake', 'Juice', 'Salad', 'Smoothie') 
@@ -143,7 +159,7 @@ CASE
     ELSE NULLIF(NULLIF(NULLIF(location, 'ERROR'), 'UNKNOWN'), '')
 END AS location,
 
-  -- Contextual cleanup of transaction_date column
+  -- Contextual cleanup of Location column
 CASE
     WHEN transaction_date IS NULL OR transaction_date IN ('ERROR', 'UNKNOWN', '')
     THEN TO_DATE('1900-01-01', 'YYYY-MM-DD')
