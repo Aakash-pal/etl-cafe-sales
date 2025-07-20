@@ -241,3 +241,64 @@ Stage	Count
 Invalid values before transformation	482
 Remaining invalid values after transformation	37
 Decimal precision restored (e.g., Tea = 1.5)	✅ Confirmed
+
+###🏪 Week 2.10: Location Cleaning & Inference
+The location column originally contained 3,143 invalid or missing entries ('ERROR', 'UNKNOWN', '', or NULL)
+
+Initial inference logic used combinations of item and payment_method to map to either 'In-store' or 'Takeaway' based on dominant transaction patterns
+
+After first pass repair, 1,705 rows were corrected using this logic
+
+A second analysis of remaining null rows highlighted potential to infer location using a safe combination of item and price_per_unit
+
+For example:
+
+Tea with price 1.5 → Takeaway
+
+Cake with price 3.0 → In-store
+
+Cookie with price 1.0 → Takeaway
+
+To avoid casting errors, price fields were validated using regex (~ '^\d+(\.\d+)?$') before conversion
+
+Final logic preserves clean values and applies inference only where all supporting fields are present and clean
+
+After applying both inference strategies, only 442 rows remain with unknown location, primarily due to insufficient supporting data
+
+📊 Most Common Remaining Null Patterns (Sample):
+Item	Payment Method	Price Per Unit	Count
+(null)	Credit Card	4.0	34
+(null)	(null)	3.0	32
+(null)	Credit Card	3.0	19
+Tea	(null)	1.5	6
+Cookie	(null)	1.0	7
+Coffee	(null)	2.0	10
+(null)	(null)	(null)	…
+
+🛠️ Final Repair Logic (Excerpt):
+sql
+Copy
+Edit
+CASE
+  WHEN (location IS NULL OR location IN ('', 'UNKNOWN', 'ERROR'))
+       AND item IN ('Cake', 'Juice', 'Salad', 'Smoothie') 
+       AND payment_method = 'Cash'
+  THEN 'In-store'
+
+  WHEN (location IS NULL OR location IN ('', 'UNKNOWN', 'ERROR'))
+       AND item IN ('Coffee', 'Cookie', 'Sandwich', 'Tea') 
+       AND payment_method = 'Cash'
+  THEN 'Takeaway'
+
+  WHEN (location IS NULL OR location IN ('', 'UNKNOWN', 'ERROR'))
+       AND item = 'Tea' AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 1.5
+  THEN 'Takeaway'
+
+  WHEN (location IS NULL OR location IN ('', 'UNKNOWN', 'ERROR'))
+       AND item = 'Cake' AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 3.0
+  THEN 'In-store'
+
+  ...
+  
+  ELSE NULLIF(NULLIF(NULLIF(location, 'ERROR'), 'UNKNOWN'), '')
+END AS location
