@@ -44,7 +44,7 @@ SELECT * FROM raw_cafe_sales LIMIT 5;
 - 869 rows remain with unresolved item values for future review
 
 
-### ✅ Week 2.1: Contextual Item Repair (Expanded)
+### Week 2.1: Contextual Item Repair (Expanded)
 
 - Expanded the `CASE` logic in `staging_cafe_sales` to cover additional `item` categories:
   - `Cake`, `Coffee`, `Cookie`, `Juice`, `Salad`, `Sandwich`, `Smoothie`, `Tea`
@@ -302,3 +302,54 @@ CASE
   
   ELSE NULLIF(NULLIF(NULLIF(location, 'ERROR'), 'UNKNOWN'), '')
 END AS location
+
+### Week 2.11: Item Cleaning & Inference
+The item column initially had 969 invalid or missing entries ('ERROR', 'UNKNOWN', '', or NULL)
+
+Early attempts at fixing item using price_per_unit failed due to:
+
+Implicit casting issues (e.g., comparing TEXT with NUMERIC)
+
+Overwriting of valid values and incorrect assumptions
+
+Analysis revealed dual-mapping cases (e.g., price_per_unit = 3.0 could be Cake or Juice) and safe cases (e.g., 1.0 is always Cookie)
+
+A robust repair strategy was developed using safe patterns with explicit numeric casting and contextual inference:
+
+Used payment_method and location alongside price_per_unit to disambiguate values
+
+Ensured no assumptions were made about existing column data types — all comparisons safely casted
+
+After applying the improved logic:
+
+item column reduced from 969 bad values to just 195
+
+Remaining nulls correspond to rows with insufficient supporting context
+
+🛠️ Final Case repair Logic (Excerpt):
+CASE
+  -- Dual: Cake vs Juice
+  WHEN item IS NULL AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 3.0 THEN
+    CASE
+      WHEN payment_method IN ('Cash', 'Credit Card', 'Digital Wallet') AND location = 'In-store' THEN 'Cake'
+      WHEN payment_method IN ('Cash', 'Credit Card', 'Digital Wallet') AND location = 'Takeaway' THEN 'Juice'
+      ELSE NULL
+    END
+
+  -- Dual: Salad vs Sandwich
+  WHEN item IS NULL AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 5.0 THEN
+    CASE
+      WHEN location = 'In-store' THEN 'Salad'
+      WHEN location = 'Takeaway' THEN 'Sandwich'
+      ELSE NULL
+    END
+
+  -- Safe mappings
+  WHEN item IS NULL AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 1.0 THEN 'Cookie'
+  WHEN item IS NULL AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 1.5 THEN 'Tea'
+  WHEN item IS NULL AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 2.0 THEN 'Coffee'
+  WHEN item IS NULL AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 4.0 THEN 'Smoothie'
+
+  -- Preserve valid values
+  ELSE NULLIF(NULLIF(NULLIF(item, 'ERROR'), 'UNKNOWN'), '')
+END AS item

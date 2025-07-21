@@ -7,57 +7,64 @@ CREATE TABLE staging_cafe_sales as
 SELECT
     transaction_id,
     -- Contextual cleanup of item column
+CASE
+  -- Handle special cases first (patches)
+  WHEN (item IS NULL OR item IN ('', 'UNKNOWN', 'ERROR'))
+       AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 2.0
+       AND payment_method = 'Credit Card' AND location = 'Takeaway'
+  THEN 'Coffee'
+
+  WHEN price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 3.0
+       AND payment_method = 'Credit Card' AND location = 'In-store'
+  THEN 'Cake'
+
+  WHEN price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 3.0
+       AND payment_method = 'Credit Card' AND location = 'Takeaway'
+  THEN 'Juice'
+
+  WHEN price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 1.5
+       AND payment_method = 'Credit Card' AND location = 'In-store'
+  THEN 'Tea'
+
+  WHEN price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 1.5
+       AND payment_method = 'Digital Wallet' AND location = 'Takeaway'
+  THEN 'Tea'
+
+  WHEN price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 1.5
+       AND payment_method = 'Cash' AND location = 'Takeaway'
+  THEN 'Tea'
+
+  WHEN price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 3.0
+       AND payment_method = 'Cash' AND location = 'In-store'
+  THEN 'Cake'
+
+  WHEN price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 4.0
+       AND payment_method = 'Credit Card' AND location = 'Takeaway'
+  THEN 'Smoothie'
+
+  WHEN price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 4.0
+       AND payment_method = 'Cash' AND location = 'In-store'
+  THEN 'Smoothie'
+
+  -- Duality logic: Juice vs Cake
+  WHEN (item IS NULL OR item IN ('', 'UNKNOWN', 'ERROR'))
+       AND price_per_unit ~ '^\d+(\.\d+)?$' THEN
     CASE
-        WHEN (item IS NULL OR item IN ('UNKNOWN', 'ERROR', ''))
-             AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 3.0
-             AND location IN ('In-store', 'Takeaway')
-             AND payment_method IN ('Cash', 'Credit Card', 'Digital Wallet')
-        THEN 'Cake'
-        
-		WHEN (item is null OR item IN ('UNKNOWN', 'ERROR', ''))
-			AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 2.0 
-			AND payment_method IN ('Cash', 'Credit Card', 'Digital Wallet')
-			AND location IN ('Takeaway', 'In-Store')
-		then 'Coffee' 
-		
-		WHEN (item is null OR item IN ('UNKNOWN', 'ERROR', ''))
-			AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 1.0
-			AND payment_method IN ('Cash', 'Credit Card', 'Digital Wallet')
-			AND location IN ('Takeaway', 'In-Store')
-		then 'Cookie'
-		
-		WHEN (item is null OR item IN ('UNKNOWN', 'ERROR', ''))
-			AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 3.0
-			AND payment_method IN ('Cash', 'Credit Card', 'Digital Wallet')
-			AND location IN ('Takeaway', 'In-Store')
-		then 'Juice'
-		
-		WHEN (item is null OR item IN ('UNKNOWN', 'ERROR', ''))
-			AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 5.0
-			AND payment_method IN ('Cash', 'Credit Card', 'Digital Wallet')
-			AND location IN ('Takeaway', 'In-Store')
-		then 'Salad'
-		
-		WHEN (item is null OR item IN ('UNKNOWN', 'ERROR', ''))
-			AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 5.0
-			AND payment_method IN ('Cash', 'Credit Card', 'Digital Wallet')
-			AND location IN ('Takeaway', 'In-Store')
-		then 'Sandwich'
-		
-		WHEN (item is null OR item IN ('UNKNOWN', 'ERROR', ''))
-			AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 4.0
-			AND payment_method IN ('Cash', 'Credit Card', 'Digital Wallet')
-			AND location IN ('Takeaway', 'In-Store')
-		then 'Smoothie'
-		
-		WHEN (item is null OR item IN ('UNKNOWN', 'ERROR', ''))
-			AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 1.5
-			AND payment_method IN ('Cash', 'Credit Card', 'Digital Wallet')
-			AND location IN ('Takeaway', 'In-Store')
-		then 'Tea'
-		
-        ELSE NULLIF(NULLIF(NULLIF(item, 'ERROR'), 'UNKNOWN'), '')
-    END AS item,
+      WHEN CAST(price_per_unit AS NUMERIC) = 3.0 AND location = 'Takeaway' THEN 'Juice'
+      WHEN CAST(price_per_unit AS NUMERIC) = 3.0 AND location = 'In-store' THEN 'Cake'
+      WHEN CAST(price_per_unit AS NUMERIC) = 5.0 AND location = 'Takeaway' THEN 'Sandwich'
+      WHEN CAST(price_per_unit AS NUMERIC) = 5.0 AND location = 'In-store' THEN 'Salad'
+      WHEN CAST(price_per_unit AS NUMERIC) = 1.0 THEN 'Cookie'
+      WHEN CAST(price_per_unit AS NUMERIC) = 1.5 THEN 'Tea'
+      WHEN CAST(price_per_unit AS NUMERIC) = 2.0 THEN 'Coffee'
+      WHEN CAST(price_per_unit AS NUMERIC) = 4.0 THEN 'Smoothie'
+      ELSE NULL
+    END
+
+  -- Clean value passthrough
+  ELSE NULLIF(NULLIF(NULLIF(item, 'ERROR'), 'UNKNOWN'), '')
+END AS item,
+
     -- Contextual cleanup of quantity column    
  CASE
 	 
@@ -163,7 +170,7 @@ CASE
        AND payment_method = 'Digital Wallet'
   THEN 'Takeaway'
 
-  --  Regex-safe inference using item + price_per_unit
+  -- 🔒 Regex-safe inference using item + price_per_unit
   WHEN (location IS NULL OR location IN ('', 'UNKNOWN', 'ERROR'))
        AND item = 'Tea' AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 1.5
   THEN 'Takeaway'
