@@ -1,218 +1,132 @@
--- Create a staging table with contextual item repair logic
-
 DROP TABLE IF EXISTS staging_cafe_sales;
 
-CREATE TABLE staging_cafe_sales as
+CREATE TABLE staging_cafe_sales AS
+WITH raw_cleaned AS (
+    SELECT
+        transaction_id,
+        transaction_date,
+        location,
+        payment_method,
+        item,
+        quantity,
+        price_per_unit,
+        total_spent,
 
+        -- Clean quantity
+        CASE
+            WHEN quantity IN ('ERROR', 'UNKNOWN', '')
+                 AND price_per_unit NOT IN ('ERROR', 'UNKNOWN', '')
+                 AND total_spent NOT IN ('ERROR', 'UNKNOWN', '')
+                 AND price_per_unit::NUMERIC != 0
+            THEN (CAST(total_spent AS NUMERIC) / CAST(price_per_unit AS NUMERIC))::INT
+            ELSE CAST(NULLIF(NULLIF(NULLIF(quantity, 'ERROR'), 'UNKNOWN'), '') AS INTEGER)
+        END AS cleaned_quantity,
+
+        -- Clean price_per_unit
+        CASE
+            WHEN (price_per_unit IS NULL OR price_per_unit IN ('ERROR', 'UNKNOWN', ''))
+                 AND quantity ~ '^[0-9]+$'
+                 AND total_spent ~ '^[0-9\.]+$'
+            THEN ROUND(CAST(total_spent AS NUMERIC) / CAST(quantity AS NUMERIC), 2)
+            WHEN price_per_unit NOT IN ('ERROR', 'UNKNOWN', '')
+            THEN CAST(price_per_unit AS NUMERIC)
+            ELSE NULL
+        END AS cleaned_price,
+
+        -- Clean total_spent
+        CASE
+            WHEN (total_spent IS NULL OR total_spent IN ('', 'UNKNOWN', 'ERROR'))
+                 AND quantity ~ '^\d+(\.\d+)?$'
+                 AND price_per_unit ~ '^\d+(\.\d+)?$'
+            THEN ROUND(CAST(quantity AS NUMERIC) * CAST(price_per_unit AS NUMERIC), 2)
+            WHEN total_spent ~ '^\d+(\.\d+)?$'
+            THEN CAST(total_spent AS NUMERIC)
+            ELSE NULL
+        END AS cleaned_spent
+    FROM raw_cafe_sales
+),
+
+item_repaired AS (
+    SELECT *,
+        CASE
+            -- Exact patches first
+            WHEN (item IS NULL OR item IN ('', 'UNKNOWN', 'ERROR'))
+                 AND cleaned_price = 2.0 AND payment_method = 'Credit Card' AND location = 'Takeaway'
+            THEN 'Coffee'
+            WHEN cleaned_price = 3.0 AND payment_method = 'Credit Card' AND location = 'In-store'
+            THEN 'Cake'
+            WHEN cleaned_price = 3.0 AND payment_method = 'Credit Card' AND location = 'Takeaway'
+            THEN 'Juice'
+            WHEN cleaned_price = 1.5 AND payment_method IN ('Credit Card', 'Digital Wallet', 'Cash') AND location = 'In-store'
+            THEN 'Tea'
+            -- Duality logic
+            WHEN (item IS NULL OR item IN ('', 'UNKNOWN', 'ERROR')) THEN
+                CASE
+                    WHEN cleaned_price = 3.0 AND location = 'Takeaway' THEN 'Juice'
+                    WHEN cleaned_price = 3.0 AND location = 'In-store' THEN 'Cake'
+                    WHEN cleaned_price = 5.0 AND location = 'Takeaway' THEN 'Sandwich'
+                    WHEN cleaned_price = 5.0 AND location = 'In-store' THEN 'Salad'
+                    WHEN cleaned_price = 1.0 THEN 'Cookie'
+                    WHEN cleaned_price = 1.5 THEN 'Tea'
+                    WHEN cleaned_price = 2.0 THEN 'Coffee'
+                    WHEN cleaned_price = 4.0 THEN 'Smoothie'
+                    ELSE NULL
+                END
+            ELSE NULLIF(NULLIF(NULLIF(item, 'ERROR'), 'UNKNOWN'), '')
+        END AS repaired_item
+    FROM raw_cleaned
+),
+
+location_resolved AS (
+    SELECT *,
+        CASE
+            WHEN location IS NULL OR location IN ('', 'UNKNOWN', 'ERROR') THEN
+                CASE
+                    WHEN repaired_item IN ('Cake', 'Juice', 'Salad', 'Smoothie') AND payment_method = 'Cash' THEN 'In-store'
+                    WHEN repaired_item IN ('Cookie', 'Tea') AND cleaned_price IN (1.0, 1.5) THEN 'Takeaway'
+                    WHEN repaired_item = 'Coffee' AND cleaned_price = 2.0 THEN 'Takeaway'
+                    WHEN repaired_item = 'Cake' AND cleaned_price = 3.0 THEN 'In-store'
+                    WHEN repaired_item = 'Juice' AND cleaned_price = 3.0 THEN 'In-store'
+                    WHEN repaired_item = 'Smoothie' AND cleaned_price = 4.0 THEN 'In-store'
+                    WHEN repaired_item = 'Salad' AND cleaned_price = 5.0 THEN 'In-store'
+                    WHEN repaired_item = 'Sandwich' AND cleaned_price = 4.0 THEN 'Takeaway'
+                    ELSE NULL
+                END
+            ELSE NULLIF(NULLIF(NULLIF(location, 'ERROR'), 'UNKNOWN'), '')
+        END AS resolved_location
+    FROM item_repaired
+),
+
+payment_method_resolved AS (
+    SELECT *,
+        CASE
+            WHEN (payment_method IS NULL OR payment_method IN ('', 'UNKNOWN', 'ERROR')) THEN
+                CASE
+                    WHEN repaired_item IN ('Cake', 'Coffee', 'Salad', 'Smoothie') AND resolved_location = 'In-store' THEN 'Cash'
+                    WHEN repaired_item IN ('Cookie', 'Juice', 'Sandwich') AND resolved_location = 'In-store' THEN 'Credit Card'
+                    WHEN repaired_item = 'Tea' AND resolved_location = 'In-store' THEN 'Digital Wallet'
+                    WHEN repaired_item IN ('Coffee', 'Salad', 'Cookie', 'Juice') AND resolved_location = 'Takeaway' THEN 'Digital Wallet'
+                    WHEN repaired_item IN ('Cake', 'Smoothie') AND resolved_location = 'Takeaway' THEN 'Credit Card'
+                    WHEN repaired_item IN ('Sandwich', 'Tea') AND resolved_location = 'Takeaway' THEN 'Cash'
+                    ELSE NULL
+                END
+            ELSE NULLIF(NULLIF(NULLIF(payment_method, 'UNKNOWN'), 'ERROR'), '')
+        END AS resolved_payment
+    FROM location_resolved
+)
+
+-- 🎯 Final output
 SELECT
     transaction_id,
-    -- Contextual cleanup of item column
-CASE
-  -- Handle special cases first (patches)
-  WHEN (item IS NULL OR item IN ('', 'UNKNOWN', 'ERROR'))
-       AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 2.0
-       AND payment_method = 'Credit Card' AND location = 'Takeaway'
-  THEN 'Coffee'
-
-  WHEN price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 3.0
-       AND payment_method = 'Credit Card' AND location = 'In-store'
-  THEN 'Cake'
-
-  WHEN price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 3.0
-       AND payment_method = 'Credit Card' AND location = 'Takeaway'
-  THEN 'Juice'
-
-  WHEN price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 1.5
-       AND payment_method = 'Credit Card' AND location = 'In-store'
-  THEN 'Tea'
-
-  WHEN price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 1.5
-       AND payment_method = 'Digital Wallet' AND location = 'Takeaway'
-  THEN 'Tea'
-
-  WHEN price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 1.5
-       AND payment_method = 'Cash' AND location = 'Takeaway'
-  THEN 'Tea'
-
-  WHEN price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 3.0
-       AND payment_method = 'Cash' AND location = 'In-store'
-  THEN 'Cake'
-
-  WHEN price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 4.0
-       AND payment_method = 'Credit Card' AND location = 'Takeaway'
-  THEN 'Smoothie'
-
-  WHEN price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 4.0
-       AND payment_method = 'Cash' AND location = 'In-store'
-  THEN 'Smoothie'
-
-  -- Duality logic: Juice vs Cake
-  WHEN (item IS NULL OR item IN ('', 'UNKNOWN', 'ERROR'))
-       AND price_per_unit ~ '^\d+(\.\d+)?$' THEN
+    repaired_item AS item,
+    cleaned_quantity AS quantity,
+    cleaned_price AS price_per_unit,
+    cleaned_spent AS total_spent,
+    resolved_payment AS payment_method,
+    resolved_location AS location,
     CASE
-      WHEN CAST(price_per_unit AS NUMERIC) = 3.0 AND location = 'Takeaway' THEN 'Juice'
-      WHEN CAST(price_per_unit AS NUMERIC) = 3.0 AND location = 'In-store' THEN 'Cake'
-      WHEN CAST(price_per_unit AS NUMERIC) = 5.0 AND location = 'Takeaway' THEN 'Sandwich'
-      WHEN CAST(price_per_unit AS NUMERIC) = 5.0 AND location = 'In-store' THEN 'Salad'
-      WHEN CAST(price_per_unit AS NUMERIC) = 1.0 THEN 'Cookie'
-      WHEN CAST(price_per_unit AS NUMERIC) = 1.5 THEN 'Tea'
-      WHEN CAST(price_per_unit AS NUMERIC) = 2.0 THEN 'Coffee'
-      WHEN CAST(price_per_unit AS NUMERIC) = 4.0 THEN 'Smoothie'
-      ELSE NULL
-    END
-
-  -- Clean value passthrough
-  ELSE NULLIF(NULLIF(NULLIF(item, 'ERROR'), 'UNKNOWN'), '')
-END AS item,
-
-    -- Contextual cleanup of quantity column    
- CASE
-	 
- 	WHEN quantity IN ('ERROR', 'UNKNOWN', '')
-       AND price_per_unit NOT IN ('ERROR', 'UNKNOWN', '')
-       AND total_spent NOT IN ('ERROR', 'UNKNOWN', '')
-      AND price_per_unit::NUMERIC != 0 --to avoid divide-by-zero erros
-  	THEN (CAST(total_spent AS NUMERIC) / CAST(price_per_unit AS NUMERIC))::INT  -- round to nearest integer
-  	
-  	ELSE CAST(NULLIF(NULLIF(NULLIF(quantity, 'ERROR'), 'UNKNOWN'), '') AS INTEGER)
-  	
-END AS quantity,
-
-    -- Contextual cleanup of price_per_unit column
-CASE 
-	
-  WHEN (price_per_unit IS NULL OR price_per_unit IN ('ERROR', 'UNKNOWN', ''))
-       AND quantity IS NOT NULL AND total_spent IS NOT NULL
-       AND NULLIF(quantity, '') ~ '^[0-9]+$'
-       AND NULLIF(total_spent, '') ~ '^[0-9\.]+$'
-  THEN ROUND(CAST(total_spent AS NUMERIC) / CAST(quantity AS NUMERIC), 2)
-
-  WHEN price_per_unit NOT IN ('ERROR', 'UNKNOWN', '')
-  THEN CAST(price_per_unit AS NUMERIC)
-
-  ELSE null
-  
-END AS price_per_unit,
-
-    -- Contextual cleanup of total_spent column  
-CASE
-    WHEN (total_spent IS NULL OR total_spent IN ('', 'UNKNOWN', 'ERROR'))
-         AND quantity ~ '^\d+(\.\d+)?$'
-         AND price_per_unit ~ '^\d+(\.\d+)?$'
-    THEN ROUND(CAST(quantity AS NUMERIC) * CAST(price_per_unit AS NUMERIC), 2)
-
-    WHEN total_spent ~ '^\d+(\.\d+)?$'
-    THEN CAST(total_spent AS NUMERIC)
-
-    ELSE NULL
-END AS total_spent,
-
-
-    -- Contextual cleanup of payment_method column    
-CASE
-    WHEN (payment_method IS NULL OR payment_method IN ('', 'UNKNOWN', 'ERROR'))
-         AND item IN ('Cake', 'Coffee', 'Salad','Smoothie') AND location = 'In-store'
-    THEN 'Cash'
-
-    WHEN (payment_method IS NULL OR payment_method IN ('', 'UNKNOWN', 'ERROR'))
-         AND item IN ('Cookie', 'Juice','Sandwich') AND location = 'In-store'
-    THEN 'Credit Card'
-
-    WHEN (payment_method IS NULL OR payment_method IN ('', 'UNKNOWN', 'ERROR'))
-         AND item IN ('Tea') AND location = 'In-store'
-    THEN 'Digital Wallet'
-	
-	WHEN (payment_method IS NULL OR payment_method IN ('', 'UNKNOWN', 'ERROR'))
-         AND item IN ('Coffee', 'Salad', 'Cookie', 'Juice') AND location = 'Takeaway'
-    THEN 'Digital Wallet'
-	
-	WHEN (payment_method IS NULL OR payment_method IN ('', 'UNKNOWN', 'ERROR'))
-         AND item IN ('Cake', 'Smoothie') AND location = 'Takeaway'
-    THEN 'Credit Card'
-	
-	WHEN (payment_method IS NULL OR payment_method IN ('', 'UNKNOWN', 'ERROR'))
-         AND item IN ('Sandwich', 'Tea') AND location = 'Takeaway'
-    THEN 'Cash'
-
-    ELSE NULLIF(NULLIF(NULLIF(payment_method, 'UNKNOWN'), 'ERROR'), '')
-END AS payment_method,
-	
-    -- Contextual cleanup of Location column
-CASE
-  -- Primary rule-based logic using item and payment_method
-  WHEN (location IS NULL OR location IN ('', 'UNKNOWN', 'ERROR'))
-       AND item IN ('Cake', 'Juice', 'Salad', 'Smoothie') 
-       AND payment_method = 'Cash'
-  THEN 'In-store'
-
-  WHEN (location IS NULL OR location IN ('', 'UNKNOWN', 'ERROR'))
-       AND item IN ('Coffee', 'Cookie', 'Sandwich', 'Tea') 
-       AND payment_method = 'Cash'
-  THEN 'Takeaway'
-
-  WHEN (location IS NULL OR location IN ('', 'UNKNOWN', 'ERROR'))
-       AND item IN ('Cookie', 'Juice', 'Salad', 'Sandwich') 
-       AND payment_method = 'Credit Card'
-  THEN 'In-store'
-
-  WHEN (location IS NULL OR location IN ('', 'UNKNOWN', 'ERROR'))
-       AND item IN ('Coffee', 'Cake', 'Smoothie', 'Tea') 
-       AND payment_method = 'Credit Card'
-  THEN 'Takeaway'
-
-  WHEN (location IS NULL OR location IN ('', 'UNKNOWN', 'ERROR'))
-       AND item IN ('Cake', 'Juice', 'Sandwich') 
-       AND payment_method = 'Digital Wallet'
-  THEN 'In-store'
-
-  WHEN (location IS NULL OR location IN ('', 'UNKNOWN', 'ERROR'))
-       AND item IN ('Coffee', 'Cookie', 'Salad', 'Tea', 'Smoothie') 
-       AND payment_method = 'Digital Wallet'
-  THEN 'Takeaway'
-
-  -- 🔒 Regex-safe inference using item + price_per_unit
-  WHEN (location IS NULL OR location IN ('', 'UNKNOWN', 'ERROR'))
-       AND item = 'Tea' AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 1.5
-  THEN 'Takeaway'
-
-  WHEN (location IS NULL OR location IN ('', 'UNKNOWN', 'ERROR'))
-       AND item = 'Cookie' AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 1.0
-  THEN 'Takeaway'
-
-  WHEN (location IS NULL OR location IN ('', 'UNKNOWN', 'ERROR'))
-       AND item = 'Cake' AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 3.0
-  THEN 'In-store'
-
-  WHEN (location IS NULL OR location IN ('', 'UNKNOWN', 'ERROR'))
-       AND item = 'Coffee' AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 2.0
-  THEN 'Takeaway'
-
-  WHEN (location IS NULL OR location IN ('', 'UNKNOWN', 'ERROR'))
-       AND item = 'Juice' AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 3.0
-  THEN 'In-store'
-
-  WHEN (location IS NULL OR location IN ('', 'UNKNOWN', 'ERROR'))
-       AND item = 'Smoothie' AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 4.0
-  THEN 'In-store'
-
-  WHEN (location IS NULL OR location IN ('', 'UNKNOWN', 'ERROR'))
-       AND item = 'Salad' AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 5.0
-  THEN 'In-store'
-
-  WHEN (location IS NULL OR location IN ('', 'UNKNOWN', 'ERROR'))
-       AND item = 'Sandwich' AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 4.0
-  THEN 'Takeaway'
-
-  ELSE NULLIF(NULLIF(NULLIF(location, 'ERROR'), 'UNKNOWN'), '')
-END AS location,
-
-
-  -- Contextual cleanup of transaction_date column
-CASE
-    WHEN transaction_date IS NULL OR transaction_date IN ('ERROR', 'UNKNOWN', '')
-    THEN TO_DATE('1900-01-01', 'YYYY-MM-DD')
-
-    ELSE TO_DATE(transaction_date, 'YYYY-MM-DD')
-END AS transaction_date
-
-FROM raw_cafe_sales;
+        WHEN transaction_date IS NULL OR transaction_date IN ('ERROR', 'UNKNOWN', '')
+        THEN TO_DATE('1900-01-01', 'YYYY-MM-DD')
+        ELSE TO_DATE(transaction_date, 'YYYY-MM-DD')
+    END AS transaction_date
+FROM payment_method_resolved;

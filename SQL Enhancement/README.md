@@ -353,3 +353,68 @@ CASE
   -- Preserve valid values
   ELSE NULLIF(NULLIF(NULLIF(item, 'ERROR'), 'UNKNOWN'), '')
 END AS item
+
+### Week 2.12 ☕ Cafe Sales Data Repair Using SQL CTEs
+
+
+## ❌ Original Query Challenges
+
+The initial approach used a single `CREATE TABLE AS SELECT` statement filled with layered `CASE` expressions to infer values. However, this caused unexpected behavior:
+
+- 🔄 **Dependent Columns Were Evaluated in Isolation**  
+  For example, `payment_method` logic relied on knowing `item` and `location`, but those values were also being inferred simultaneously within the same query. SQL doesn’t guarantee evaluation order across columns, causing `payment_method` to remain unresolved in many rows.
+
+- ⚠️ **Incomplete Support Data**  
+  Some rows lacked values in key columns required to infer others. E.g., records with null `item`, `location`, or `price_per_unit` couldn’t be logically repaired.
+
+- 🧩 **Hard to Debug and Maintain**  
+  The all-in-one query was difficult to read and nearly impossible to isolate where logic failed across different columns.
+
+---
+
+## ✅ Solution: Modular Cleanup via CTEs
+
+The query was refactored using CTEs to introduce clarity and ordered logical processing. Each CTE performs a targeted transformation:
+
+### CTE Breakdown:
+
+| CTE Name | Responsibility |
+|---------|----------------|
+| `raw_cleaned` | Cleans `quantity`, `price_per_unit`, and `total_spent` |
+| `item_repaired` | Infers missing or invalid `item` values contextually |
+| `location_resolved` | Determines missing `location` using item and payment method |
+| `payment_method_resolved` | Infers `payment_method` based on repaired fields |
+| Final `SELECT` | Assembles cleaned data into `staging_cafe_sales` table |
+
+This sequencing ensures each field uses the most up-to-date values inferred earlier in the flow. It also improves readability, maintainability, and offers clear debug checkpoints.
+
+---
+
+## 📦 Output Table: `staging_cafe_sales`
+
+Contains:
+- Fully repaired `item`, `quantity`, `price_per_unit`, `total_spent`, `payment_method`, and `location`
+- Validated `transaction_date` using a default fallback date (`1900-01-01`) when missing
+- Logical inference based on contextual patterns between fields
+
+---
+
+## 📚 Learnings
+
+- 🔍 Column dependency matters — resolve key fields in logical order.
+- ⚙️ Use CTEs to layer complexity while keeping logic modular.
+- 🧪 Break big transformations into focused steps for clarity and testing.
+- 🧼 Ensure regex and numeric parsing safely handle edge cases.
+
+---
+
+## 🙌 Inspiration
+
+Inspired by real-world messy datasets and the joys of solving puzzles with SQL. This solution provides a scalable template for contextual data repair tasks where values can be imputed logically from surrounding patterns.
+
+---
+
+## 📣 Feedback & Collaboration
+
+Feel free to fork the repo, suggest improvements, add new rules, or use this as a base for your own data cleaning adventures. Contributions and ideas welcome!
+
