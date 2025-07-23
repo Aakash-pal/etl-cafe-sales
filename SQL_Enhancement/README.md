@@ -406,6 +406,62 @@ Contains:
 - 🧪 Break big transformations into focused steps for clarity and testing.
 - 🧼 Ensure regex and numeric parsing safely handle edge cases.
 
+
+### Week 2.13 🧹 Further Data Cleaning & Repair
+
+
+## 🚩 Initial Challenges
+
+Raw data issues identified:
+- Invalid entries like `'ERROR'`, `'UNKNOWN'`, and empty strings across multiple columns.
+- Missing values in key fields (`item`, `quantity`, `price_per_unit`, `total_spent`, `location`, `payment_method`).
+- Fields with incorrect formats, making calculation or inference tricky.
+
+### Null Counts Before Cleaning
+
+| Field            | Null Rows |
+|------------------|-----------|
+| `item`           | 152       |
+| `quantity`       | 38        |
+| `price_per_unit` | 38        |
+| `total_spent`    | 40        |
+| `location`       | 160       |
+| `payment_method` | 54        |
+
+---
+
+## 🔧 Data Cleaning Logic (CTEs Overview)
+
+### 1. `raw_cleaned`
+- Parsed and repaired `quantity`, `price_per_unit`, and `total_spent` using arithmetic fallback rules.
+- Casted numeric values safely after stripping invalid entries.
+
+### 2. `item_repaired`
+- Mapped common pricing and location combinations to infer missing `item` entries.
+- Added fallback logic for borderline cases based on patterns.
+
+### 3. `location_resolved`
+- Used known item-location relationships and cleaned price tiers to infer location.
+- Added fallback logic where both item and location were missing.
+
+### 4. `payment_method_resolved`
+- Introduced multi-level fallback: item-location rules, price-based inference, and transaction-type assumptions.
+
+---
+
+## 📊 Final Results After Cleaning
+
+| Field            | Null Rows |
+|------------------|-----------|
+| `item`           | 6         |
+| `quantity`       | 38        |
+| `price_per_unit` | 38        |
+| `total_spent`    | 40        |
+| `location`       | 3         |
+| `payment_method` | 3         |
+
+This represents a **massive reduction** in null counts—especially for fields that were previously over 100 nulls. Most remaining nulls represent truly unrecoverable or ambiguous rows, which were intentionally left untouched to avoid risky assumptions.
+
 ---
 
 ## 🙌 Inspiration

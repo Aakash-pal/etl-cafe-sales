@@ -49,28 +49,22 @@ WITH raw_cleaned AS (
 item_repaired AS (
     SELECT *,
         CASE
-            -- Exact patches first
-            WHEN (item IS NULL OR item IN ('', 'UNKNOWN', 'ERROR'))
-                 AND cleaned_price = 2.0 AND payment_method = 'Credit Card' AND location = 'Takeaway'
-            THEN 'Coffee'
-            WHEN cleaned_price = 3.0 AND payment_method = 'Credit Card' AND location = 'In-store'
-            THEN 'Cake'
-            WHEN cleaned_price = 3.0 AND payment_method = 'Credit Card' AND location = 'Takeaway'
-            THEN 'Juice'
-            WHEN cleaned_price = 1.5 AND payment_method IN ('Credit Card', 'Digital Wallet', 'Cash') AND location = 'In-store'
-            THEN 'Tea'
-            -- Duality logic
             WHEN (item IS NULL OR item IN ('', 'UNKNOWN', 'ERROR')) THEN
                 CASE
-                    WHEN cleaned_price = 3.0 AND location = 'Takeaway' THEN 'Juice'
                     WHEN cleaned_price = 3.0 AND location = 'In-store' THEN 'Cake'
-                    WHEN cleaned_price = 5.0 AND location = 'Takeaway' THEN 'Sandwich'
+                    WHEN cleaned_price = 3.0 AND location = 'Takeaway' THEN 'Juice'
                     WHEN cleaned_price = 5.0 AND location = 'In-store' THEN 'Salad'
+                    WHEN cleaned_price = 5.0 AND location = 'Takeaway' THEN 'Sandwich'
                     WHEN cleaned_price = 1.0 THEN 'Cookie'
                     WHEN cleaned_price = 1.5 THEN 'Tea'
                     WHEN cleaned_price = 2.0 THEN 'Coffee'
                     WHEN cleaned_price = 4.0 THEN 'Smoothie'
-                    ELSE NULL
+                    ELSE
+                        CASE
+                            WHEN cleaned_price = 3.0 THEN 'Juice'
+                            WHEN cleaned_price = 5.0 THEN 'Sandwich'
+                            ELSE NULL
+                        END
                 END
             ELSE NULLIF(NULLIF(NULLIF(item, 'ERROR'), 'UNKNOWN'), '')
         END AS repaired_item
@@ -82,14 +76,10 @@ location_resolved AS (
         CASE
             WHEN location IS NULL OR location IN ('', 'UNKNOWN', 'ERROR') THEN
                 CASE
-                    WHEN repaired_item IN ('Cake', 'Juice', 'Salad', 'Smoothie') AND payment_method = 'Cash' THEN 'In-store'
-                    WHEN repaired_item IN ('Cookie', 'Tea') AND cleaned_price IN (1.0, 1.5) THEN 'Takeaway'
-                    WHEN repaired_item = 'Coffee' AND cleaned_price = 2.0 THEN 'Takeaway'
-                    WHEN repaired_item = 'Cake' AND cleaned_price = 3.0 THEN 'In-store'
-                    WHEN repaired_item = 'Juice' AND cleaned_price = 3.0 THEN 'In-store'
-                    WHEN repaired_item = 'Smoothie' AND cleaned_price = 4.0 THEN 'In-store'
-                    WHEN repaired_item = 'Salad' AND cleaned_price = 5.0 THEN 'In-store'
-                    WHEN repaired_item = 'Sandwich' AND cleaned_price = 4.0 THEN 'Takeaway'
+                    WHEN repaired_item IN ('Cake', 'Juice', 'Salad', 'Smoothie') THEN 'In-store'
+                    WHEN repaired_item IN ('Tea', 'Cookie', 'Coffee', 'Sandwich') THEN 'Takeaway'
+                    WHEN cleaned_price IN (1.0, 1.5, 2.0) THEN 'Takeaway'
+                    WHEN cleaned_price IN (3.0, 4.0, 5.0) THEN 'In-store'
                     ELSE NULL
                 END
             ELSE NULLIF(NULLIF(NULLIF(location, 'ERROR'), 'UNKNOWN'), '')
@@ -102,12 +92,23 @@ payment_method_resolved AS (
         CASE
             WHEN (payment_method IS NULL OR payment_method IN ('', 'UNKNOWN', 'ERROR')) THEN
                 CASE
-                    WHEN repaired_item IN ('Cake', 'Coffee', 'Salad', 'Smoothie') AND resolved_location = 'In-store' THEN 'Cash'
-                    WHEN repaired_item IN ('Cookie', 'Juice', 'Sandwich') AND resolved_location = 'In-store' THEN 'Credit Card'
-                    WHEN repaired_item = 'Tea' AND resolved_location = 'In-store' THEN 'Digital Wallet'
-                    WHEN repaired_item IN ('Coffee', 'Salad', 'Cookie', 'Juice') AND resolved_location = 'Takeaway' THEN 'Digital Wallet'
-                    WHEN repaired_item IN ('Cake', 'Smoothie') AND resolved_location = 'Takeaway' THEN 'Credit Card'
-                    WHEN repaired_item IN ('Sandwich', 'Tea') AND resolved_location = 'Takeaway' THEN 'Cash'
+                    WHEN repaired_item = 'Tea' THEN 
+                        CASE 
+                            WHEN resolved_location = 'In-store' THEN 'Digital Wallet'
+                            ELSE 'Cash'
+                        END
+                    WHEN repaired_item = 'Coffee' THEN 'Digital Wallet'
+                    WHEN repaired_item = 'Cake' THEN 'Cash'
+                    WHEN repaired_item = 'Cookie' THEN 'Cash'
+                    WHEN repaired_item IN ('Juice', 'Smoothie') THEN 'Credit Card'
+                    WHEN repaired_item IN ('Salad', 'Sandwich') THEN 
+                        CASE 
+                            WHEN resolved_location = 'Takeaway' THEN 'Cash'
+                            ELSE 'Credit Card'
+                        END
+                    WHEN cleaned_price <= 2.0 THEN 'Cash'
+                    WHEN cleaned_price BETWEEN 2.01 AND 4.0 THEN 'Digital Wallet'
+                    WHEN cleaned_price > 4.0 THEN 'Credit Card'
                     ELSE NULL
                 END
             ELSE NULLIF(NULLIF(NULLIF(payment_method, 'UNKNOWN'), 'ERROR'), '')
@@ -115,7 +116,6 @@ payment_method_resolved AS (
     FROM location_resolved
 )
 
--- 🎯 Final output
 SELECT
     transaction_id,
     repaired_item AS item,
