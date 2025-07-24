@@ -113,7 +113,7 @@ SELECT COUNT(*) FROM staging_cafe_sales WHERE quantity IS NOT NULL;  -- Successf
 - Used frequency analysis via grouped queries to determine dominant patterns
 - Created a unified `CASE` statement to fill in missing values based on business logic
 
-#### ✅ Key Rules Applied:
+### ✅ Key Rules Applied:
 
 | Payment Method  | Items                           | Inferred Location |
 |-----------------|----------------------------------|-------------------|
@@ -166,7 +166,7 @@ END AS transaction_date
 - Grouped rows by common transaction patterns to identify dominant combinations
 - Applied explicit mapping rules for both `In-store` and `Takeaway` contexts after Transformation there were 1478 rows with bad data.
 
-#### 🛠️ Final CASE Logic (Partial View):
+### 🛠️ Final CASE Logic (Partial View):
 ```sql
 CASE 
   WHEN payment_method IN ('', 'UNKNOWN', 'ERROR') AND item IN (...) AND location = 'In-store'
@@ -187,7 +187,7 @@ Confirmed that quantity * price_per_unit provides accurate estimates for missing
 
 After transformation, 462 rows were successfully repaired, leaving only 40 rows unrepaired due to invalid or missing values in dependent fields
 
-🛠️ Final CASE Logic (Simplified View):
+###🛠️ Final CASE Logic (Simplified View):
 sql
 Copy
 Edit
@@ -220,7 +220,7 @@ Ensures decimal precision (e.g., 1.5 for Tea, 2.0 for Coffee)
 
 After applying the updated transformation, only 37 invalid entries remained, primarily due to rows where supporting fields like quantity or total_spent were still invalid
 
-🛠️ Final Repair Logic (for price_per_unit):
+###🛠️ Final Repair Logic (for price_per_unit):
 sql
 Copy
 Edit
@@ -265,7 +265,7 @@ Final logic preserves clean values and applies inference only where all supporti
 
 After applying both inference strategies, only 442 rows remain with unknown location, primarily due to insufficient supporting data
 
-📊 Most Common Remaining Null Patterns (Sample):
+###📊 Most Common Remaining Null Patterns (Sample):
 Item	Payment Method	Price Per Unit	Count
 (null)	Credit Card	4.0	34
 (null)	(null)	3.0	32
@@ -275,7 +275,7 @@ Cookie	(null)	1.0	7
 Coffee	(null)	2.0	10
 (null)	(null)	(null)	…
 
-🛠️ Final Repair Logic (Excerpt):
+###🛠️ Final Repair Logic (Excerpt):
 sql
 Copy
 Edit
@@ -326,7 +326,7 @@ item column reduced from 969 bad values to just 195
 
 Remaining nulls correspond to rows with insufficient supporting context
 
-🛠️ Final Case repair Logic (Excerpt):
+###🛠️ Final Case repair Logic (Excerpt):
 CASE
   -- Dual: Cake vs Juice
   WHEN item IS NULL AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 3.0 THEN
@@ -462,6 +462,62 @@ Raw data issues identified:
 
 This represents a **massive reduction** in null counts—especially for fields that were previously over 100 nulls. Most remaining nulls represent truly unrecoverable or ambiguous rows, which were intentionally left untouched to avoid risky assumptions.
 
+---
+
+###📊 Week 3: Exploratory SQL Analysis & Power BI Planning
+After successfully building the fully cleaned and enriched final_cafe_sales table, we proceeded with SQL-based business analysis. This phase focused on identifying sales trends, customer behavior, and preparing the foundation for visualizations in Power BI.
+
+##🛍️ Top 5 Best-Selling Items by Quantity
+
+SELECT item, SUM(quantity) AS total_quantity
+FROM final_cafe_sales
+GROUP BY item
+ORDER BY total_quantity DESC
+LIMIT 5;
+Insight: Identifies the most popular items across all stores based on total units sold.
+
+##📈 Monthly Revenue Trend
+
+SELECT DATE_TRUNC('month', transaction_date) AS month, SUM(total_spent) AS monthly_revenue
+FROM final_cafe_sales
+GROUP BY month
+ORDER BY month;
+Insight: Tracks revenue trends over time to support decisions around marketing campaigns, seasonal demands, and promotions.
+
+##📦 Category-Wise Sales and Revenue
+
+SELECT category, SUM(quantity) AS total_units_sold, SUM(total_spent) AS total_revenue
+FROM final_cafe_sales
+GROUP BY category
+ORDER BY total_revenue DESC;
+Insight: Breaks down performance by product category, helping identify which categories generate the highest sales and revenue.
+
+##💳 Payment Preferences by Store Type
+
+SELECT store_type, payment_method, COUNT(*) AS transactions
+FROM final_cafe_sales
+GROUP BY store_type, payment_method
+ORDER BY store_type, transactions DESC;
+Insight: Reveals how customer payment preferences (Cash, Credit Card, Digital Wallet) differ between Urban and Suburban stores.
+
+##🏙️ Top Performing City by Revenue
+
+SELECT city, SUM(total_spent) AS total_city_sales
+FROM final_cafe_sales
+GROUP BY city
+ORDER BY total_city_sales DESC
+LIMIT 1;
+Insight: Highlights the most profitable city in terms of total revenue.
+
+
+###📁 Power BI Visuals Plan
+
+Visualization	Based On	Description
+Bar Chart	Top items	Total quantity of best-selling items
+Line Chart	Revenue trend	Monthly total revenue across time
+Stacked Column Chart	Category sales	Units sold + revenue by product category
+Stacked Bar Chart	Payment split	Payment method by store type
+Card Visual	Top city	Displays the city with the highest revenue
 ---
 
 ## 🙌 Inspiration
