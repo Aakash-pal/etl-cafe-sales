@@ -22,6 +22,15 @@ This project demonstrates a **pure SQL ETL pipeline** for cleaning and transform
 
 ---
 
+## 📊 ETL Architecture Diagram
+
+This project follows a layered ETL architecture to transform raw café sales data into clean, business-ready datasets.
+
+![ETL Architecture](./SQL Enhancement/data_architecture_cafe_sales.png)
+
+
+---
+
 ## ✅ What’s Completed
 
 ### Week 1: Raw Load
