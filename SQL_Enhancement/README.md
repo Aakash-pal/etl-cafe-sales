@@ -43,6 +43,8 @@ This project follows a layered ETL architecture to transform raw café sales dat
 SELECT COUNT(*) FROM raw_cafe_sales;
 SELECT * FROM raw_cafe_sales LIMIT 5;
 ```
+---
+
 ### Week 2: Intelligent Repair Layer
 - Created staging_cafe_sales using CREATE TABLE AS SELECT
 
@@ -52,6 +54,7 @@ SELECT * FROM raw_cafe_sales LIMIT 5;
 
 - 869 rows remain with unresolved item values for future review
 
+---
 
 ### Week 2.1: Contextual Item Repair (Expanded)
 
@@ -73,6 +76,8 @@ CASE
   THEN 'Coffee'
   ...
 ```
+---
+
 ### 🧪 Week 2.2: Quantity Column Repair (Contextual)
 
 - Identified 479 rows with invalid `quantity` values: `'ERROR'`, `'UNKNOWN'`, or blank.
@@ -89,15 +94,18 @@ WHERE quantity IN ('UNKNOWN', '', 'ERROR')
   AND total_spent NOT IN ('UNKNOWN', '', 'ERROR');
 
 ```  
+
+---
+
 ### 🧪 Week 2.3: Quantity Column Repair (Calculated Logic)
 
 - Identified 479 rows where `quantity` was invalid: `'ERROR'`, `'UNKNOWN'`, or blank.
 - Further narrowed to 441 rows where:
   - `price_per_unit` and `total_spent` were valid
   - `quantity` could be derived using:
-    ```sql
+```sql
     quantity = total_spent / price_per_unit
-    ```
+```
 
 - Updated the staging layer to include a new `CASE` expression for `quantity`:
     - Replaced dirty values with the calculated result (rounded to integer)
@@ -109,14 +117,20 @@ WHERE quantity IN ('UNKNOWN', '', 'ERROR')
 SELECT COUNT(*) FROM staging_cafe_sales WHERE quantity IS NULL;  -- Result: 38
 SELECT COUNT(*) FROM staging_cafe_sales WHERE quantity IS NOT NULL;  -- Successfully repaired remainder
 ```
+
+---
+
 ### 💵 Week 2.4: Price Per Unit Repair (Calculated Logic)
 
 - Identified rows where `price_per_unit` was missing or invalid (`NULL`, `'ERROR'`, `'UNKNOWN'`)there were 533 rows
 - For rows with valid `quantity` and `total_spent`, calculated missing values using: after which the count is 479 rows
   
-  ```sql
+```sql
   price_per_unit = total_spent / quantity
 ```
+
+---
+
 ### 🧭 Week 2.5: Location Column Repair (Rule-Based Inference)
 
 - Identified that `location` had numerous invalid entries such as `'ERROR'`, `'UNKNOWN'`, `''`, and `NULL`
@@ -146,12 +160,15 @@ CASE
   ELSE NULLIF(NULLIF(NULLIF(location, 'ERROR'), 'UNKNOWN'), '')
 END AS location
 ```
+
 📊 Impact of Transformation:
 🔍 Initial dirty location rows: 3,961
 
 ✅ Remaining dirty rows after transformation: 1,555
 
 Repaired over 60% of invalid locations using pattern-based rules
+
+---
 
 ### 📅 Week 2.6: Transaction Date Cleaning & Repair
 
@@ -170,6 +187,9 @@ CASE
   ELSE TO_DATE(transaction_date, 'YYYY-MM-DD')  -- Clean values
 END AS transaction_date
 ```
+
+---
+
 ### 💳 Week 2.7: Payment Method Cleaning & Inference
 
 - The `payment_method` column contained 3,178 invalid or missing values (`'ERROR'`, `'UNKNOWN'`, `''`, or `NULL`)
@@ -187,6 +207,8 @@ CASE
 END AS payment_method
 ```
 
+---
+
 ###💰 Week 2.8: Total Spent Cleaning & Calculation
 The total_spent column initially contained 502 invalid or missing values ('ERROR', 'UNKNOWN', '', or NULL)
 
@@ -199,9 +221,7 @@ Confirmed that quantity * price_per_unit provides accurate estimates for missing
 After transformation, 462 rows were successfully repaired, leaving only 40 rows unrepaired due to invalid or missing values in dependent fields
 
 ###🛠️ Final CASE Logic (Simplified View):
-sql
-Copy
-Edit
+```sql
 CASE
   WHEN (total_spent IS NULL OR total_spent IN ('', 'UNKNOWN', 'ERROR'))
     AND quantity IS NOT NULL
@@ -213,6 +233,8 @@ CASE
 
   ELSE NULL
 END AS total_spent
+```
+---
 
 ###💰 Week 2.9: Price Per Unit Cleaning & Repair
 The price_per_unit column originally had 482 invalid or missing entries ('ERROR', 'UNKNOWN', '', or NULL)
@@ -232,9 +254,7 @@ Ensures decimal precision (e.g., 1.5 for Tea, 2.0 for Coffee)
 After applying the updated transformation, only 37 invalid entries remained, primarily due to rows where supporting fields like quantity or total_spent were still invalid
 
 ###🛠️ Final Repair Logic (for price_per_unit):
-sql
-Copy
-Edit
+```sql
 CASE 
   WHEN (price_per_unit IS NULL OR price_per_unit IN ('ERROR', 'UNKNOWN', ''))
        AND quantity IS NOT NULL AND total_spent IS NOT NULL
@@ -247,11 +267,15 @@ CASE
 
   ELSE NULL
 END AS price_per_unit
+```
+
 📊 Post-Transformation Summary
 Stage	Count
 Invalid values before transformation	482
 Remaining invalid values after transformation	37
 Decimal precision restored (e.g., Tea = 1.5)	✅ Confirmed
+
+---
 
 ###🏪 Week 2.10: Location Cleaning & Inference
 The location column originally contained 3,143 invalid or missing entries ('ERROR', 'UNKNOWN', '', or NULL)
@@ -287,9 +311,7 @@ Coffee	(null)	2.0	10
 (null)	(null)	(null)	…
 
 ###🛠️ Final Repair Logic (Excerpt):
-sql
-Copy
-Edit
+```sql
 CASE
   WHEN (location IS NULL OR location IN ('', 'UNKNOWN', 'ERROR'))
        AND item IN ('Cake', 'Juice', 'Salad', 'Smoothie') 
@@ -313,6 +335,8 @@ CASE
   
   ELSE NULLIF(NULLIF(NULLIF(location, 'ERROR'), 'UNKNOWN'), '')
 END AS location
+```
+---
 
 ### Week 2.11: Item Cleaning & Inference
 The item column initially had 969 invalid or missing entries ('ERROR', 'UNKNOWN', '', or NULL)
@@ -338,6 +362,7 @@ item column reduced from 969 bad values to just 195
 Remaining nulls correspond to rows with insufficient supporting context
 
 ###🛠️ Final Case repair Logic (Excerpt):
+```sql
 CASE
   -- Dual: Cake vs Juice
   WHEN item IS NULL AND price_per_unit ~ '^\d+(\.\d+)?$' AND CAST(price_per_unit AS NUMERIC) = 3.0 THEN
@@ -364,6 +389,8 @@ CASE
   -- Preserve valid values
   ELSE NULLIF(NULLIF(NULLIF(item, 'ERROR'), 'UNKNOWN'), '')
 END AS item
+```
+---
 
 ### Week 2.12 ☕ Cafe Sales Data Repair Using SQL CTEs
 
@@ -381,13 +408,12 @@ The initial approach used a single `CREATE TABLE AS SELECT` statement filled wit
 - 🧩 **Hard to Debug and Maintain**  
   The all-in-one query was difficult to read and nearly impossible to isolate where logic failed across different columns.
 
----
 
 ## ✅ Solution: Modular Cleanup via CTEs
 
 The query was refactored using CTEs to introduce clarity and ordered logical processing. Each CTE performs a targeted transformation:
 
-### CTE Breakdown:
+## CTE Breakdown:
 
 | CTE Name | Responsibility |
 |---------|----------------|
@@ -399,16 +425,12 @@ The query was refactored using CTEs to introduce clarity and ordered logical pro
 
 This sequencing ensures each field uses the most up-to-date values inferred earlier in the flow. It also improves readability, maintainability, and offers clear debug checkpoints.
 
----
-
 ## 📦 Output Table: `staging_cafe_sales`
 
 Contains:
 - Fully repaired `item`, `quantity`, `price_per_unit`, `total_spent`, `payment_method`, and `location`
 - Validated `transaction_date` using a default fallback date (`1900-01-01`) when missing
 - Logical inference based on contextual patterns between fields
-
----
 
 ## 📚 Learnings
 
@@ -417,6 +439,7 @@ Contains:
 - 🧪 Break big transformations into focused steps for clarity and testing.
 - 🧼 Ensure regex and numeric parsing safely handle edge cases.
 
+---
 
 ### Week 2.13 🧹 Further Data Cleaning & Repair
 
@@ -443,22 +466,20 @@ Raw data issues identified:
 
 ## 🔧 Data Cleaning Logic (CTEs Overview)
 
-### 1. `raw_cleaned`
+## 1. `raw_cleaned`
 - Parsed and repaired `quantity`, `price_per_unit`, and `total_spent` using arithmetic fallback rules.
 - Casted numeric values safely after stripping invalid entries.
 
-### 2. `item_repaired`
+## 2. `item_repaired`
 - Mapped common pricing and location combinations to infer missing `item` entries.
 - Added fallback logic for borderline cases based on patterns.
 
-### 3. `location_resolved`
+## 3. `location_resolved`
 - Used known item-location relationships and cleaned price tiers to infer location.
 - Added fallback logic where both item and location were missing.
 
-### 4. `payment_method_resolved`
+## 4. `payment_method_resolved`
 - Introduced multi-level fallback: item-location rules, price-based inference, and transaction-type assumptions.
-
----
 
 ## 📊 Final Results After Cleaning
 
@@ -480,55 +501,67 @@ After successfully building the fully cleaned and enriched final_cafe_sales tabl
 
 ##🛍️ Top 5 Best-Selling Items by Quantity
 
+```sql
 SELECT item, SUM(quantity) AS total_quantity
 FROM final_cafe_sales
 GROUP BY item
 ORDER BY total_quantity DESC
 LIMIT 5;
 Insight: Identifies the most popular items across all stores based on total units sold.
+```
 
 ##📈 Monthly Revenue Trend
 
+```sql
 SELECT DATE_TRUNC('month', transaction_date) AS month, SUM(total_spent) AS monthly_revenue
 FROM final_cafe_sales
 GROUP BY month
 ORDER BY month;
 Insight: Tracks revenue trends over time to support decisions around marketing campaigns, seasonal demands, and promotions.
+```
 
 ##📦 Category-Wise Sales and Revenue
 
+```sql
 SELECT category, SUM(quantity) AS total_units_sold, SUM(total_spent) AS total_revenue
 FROM final_cafe_sales
 GROUP BY category
 ORDER BY total_revenue DESC;
 Insight: Breaks down performance by product category, helping identify which categories generate the highest sales and revenue.
+```
 
 ##💳 Payment Preferences by Store Type
 
+```sql
 SELECT store_type, payment_method, COUNT(*) AS transactions
 FROM final_cafe_sales
 GROUP BY store_type, payment_method
 ORDER BY store_type, transactions DESC;
 Insight: Reveals how customer payment preferences (Cash, Credit Card, Digital Wallet) differ between Urban and Suburban stores.
+```
 
 ##🏙️ Top Performing City by Revenue
 
+```sql
 SELECT city, SUM(total_spent) AS total_city_sales
 FROM final_cafe_sales
 GROUP BY city
 ORDER BY total_city_sales DESC
 LIMIT 1;
 Insight: Highlights the most profitable city in terms of total revenue.
+```
+
+### 📊 Power BI Visuals Plan
+
+| Visualization         | Based On        | Description                                  |
+|-----------------------|------------------|----------------------------------------------|
+| Bar Chart             | Top items        | Total quantity of best-selling items         |
+| Line Chart            | Revenue trend    | Monthly total revenue across time            |
+| Stacked Column Chart  | Category sales   | Units sold + revenue by product category     |
+| Stacked Bar Chart     | Payment split    | Payment method by store type                 |
+| Card Visual           | Top city         | Displays the city with the highest revenue   |
 
 
-###📁 Power BI Visuals Plan
-
-Visualization	Based On	Description
-Bar Chart	Top items	Total quantity of best-selling items
-Line Chart	Revenue trend	Monthly total revenue across time
-Stacked Column Chart	Category sales	Units sold + revenue by product category
-Stacked Bar Chart	Payment split	Payment method by store type
-Card Visual	Top city	Displays the city with the highest revenue
 ---
 
 ## 🙌 Inspiration
