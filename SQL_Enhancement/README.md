@@ -42,7 +42,7 @@ This project follows a layered ETL architecture to transform raw café sales dat
 ```sql
 SELECT COUNT(*) FROM raw_cafe_sales;
 SELECT * FROM raw_cafe_sales LIMIT 5;
-
+```
 ### Week 2: Intelligent Repair Layer
 - Created staging_cafe_sales using CREATE TABLE AS SELECT
 
@@ -72,6 +72,7 @@ CASE
        AND location IN (...) 
   THEN 'Coffee'
   ...
+```
 ### 🧪 Week 2.2: Quantity Column Repair (Contextual)
 
 - Identified 479 rows with invalid `quantity` values: `'ERROR'`, `'UNKNOWN'`, or blank.
@@ -86,7 +87,8 @@ FROM staging_cafe_sales
 WHERE quantity IN ('UNKNOWN', '', 'ERROR')
   AND price_per_unit NOT IN ('UNKNOWN', '', 'ERROR')
   AND total_spent NOT IN ('UNKNOWN', '', 'ERROR');
-  
+
+```  
 ### 🧪 Week 2.3: Quantity Column Repair (Calculated Logic)
 
 - Identified 479 rows where `quantity` was invalid: `'ERROR'`, `'UNKNOWN'`, or blank.
@@ -106,7 +108,7 @@ WHERE quantity IN ('UNKNOWN', '', 'ERROR')
 ```sql
 SELECT COUNT(*) FROM staging_cafe_sales WHERE quantity IS NULL;  -- Result: 38
 SELECT COUNT(*) FROM staging_cafe_sales WHERE quantity IS NOT NULL;  -- Successfully repaired remainder
-
+```
 ### 💵 Week 2.4: Price Per Unit Repair (Calculated Logic)
 
 - Identified rows where `price_per_unit` was missing or invalid (`NULL`, `'ERROR'`, `'UNKNOWN'`)there were 533 rows
@@ -114,7 +116,7 @@ SELECT COUNT(*) FROM staging_cafe_sales WHERE quantity IS NOT NULL;  -- Successf
   
   ```sql
   price_per_unit = total_spent / quantity
-
+```
 ### 🧭 Week 2.5: Location Column Repair (Rule-Based Inference)
 
 - Identified that `location` had numerous invalid entries such as `'ERROR'`, `'UNKNOWN'`, `''`, and `NULL`
@@ -143,7 +145,7 @@ CASE
   ...
   ELSE NULLIF(NULLIF(NULLIF(location, 'ERROR'), 'UNKNOWN'), '')
 END AS location
-
+```
 📊 Impact of Transformation:
 🔍 Initial dirty location rows: 3,961
 
@@ -167,7 +169,7 @@ CASE
 
   ELSE TO_DATE(transaction_date, 'YYYY-MM-DD')  -- Clean values
 END AS transaction_date
-
+```
 ### 💳 Week 2.7: Payment Method Cleaning & Inference
 
 - The `payment_method` column contained 3,178 invalid or missing values (`'ERROR'`, `'UNKNOWN'`, `''`, or `NULL`)
@@ -183,7 +185,7 @@ CASE
   ...
   ELSE NULLIF(NULLIF(NULLIF(payment_method, 'UNKNOWN'), 'ERROR'), '')
 END AS payment_method
-
+```
 
 ###💰 Week 2.8: Total Spent Cleaning & Calculation
 The total_spent column initially contained 502 invalid or missing values ('ERROR', 'UNKNOWN', '', or NULL)
