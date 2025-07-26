@@ -208,15 +208,15 @@ END AS payment_method
 ```
 ---
 
-###💰 Week 2.8: Total Spent Cleaning & Calculation
+### 💰 Week 2.8: Total Spent Cleaning & Calculation
 
--The total_spent column initially contained 502 invalid or missing values ('ERROR', 'UNKNOWN', '', or NULL)
--Used derived calculation logic based on valid quantity and price_per_unit fields
--Ensured numeric safety by casting supporting fields to NUMERIC type after filtering out invalid strings
--Confirmed that quantity * price_per_unit provides accurate estimates for missing total_spent values
--After transformation, 462 rows were successfully repaired, leaving only 40 rows unrepaired due to invalid or missing values in dependent fields
+- The total_spent column initially contained 502 invalid or missing values ('ERROR', 'UNKNOWN', '', or NULL)
+- Used derived calculation logic based on valid quantity and price_per_unit fields
+- Ensured numeric safety by casting supporting fields to NUMERIC type after filtering out invalid strings
+- Confirmed that quantity * price_per_unit provides accurate estimates for missing total_spent values
+- After transformation, 462 rows were successfully repaired, leaving only 40 rows unrepaired due to invalid or missing values in dependent fields
 
-###🛠️ Final CASE Logic (Simplified View):
+### 🛠️ Final CASE Logic (Simplified View):
 ```sql
 CASE
   WHEN (total_spent IS NULL OR total_spent IN ('', 'UNKNOWN', 'ERROR'))
@@ -232,17 +232,17 @@ END AS total_spent
 ```
 ---
 
-###💰 Week 2.9: Price Per Unit Cleaning & Repair
+### 💰 Week 2.9: Price Per Unit Cleaning & Repair
 
--The price_per_unit column originally had 482 invalid or missing entries ('ERROR', 'UNKNOWN', '', or NULL)
--Initial logic erroneously cast decimal values to integers, leading to incorrect values (e.g., 1.5 → 2)
--Further analysis revealed that valid entries were being overwritten even when no transformation was needed
--Refined logic now: Only targets truly invalid values
--Preserves clean values without alteration
--Ensures decimal precision (e.g., 1.5 for Tea, 2.0 for Coffee)
--After applying the updated transformation, only 37 invalid entries remained, primarily due to rows where supporting fields like quantity or total_spent were still invalid
+- The price_per_unit column originally had 482 invalid or missing entries ('ERROR', 'UNKNOWN', '', or NULL)
+- Initial logic erroneously cast decimal values to integers, leading to incorrect values (e.g., 1.5 → 2)
+- Further analysis revealed that valid entries were being overwritten even when no transformation was needed
+- Refined logic now: Only targets truly invalid values
+- Preserves clean values without alteration
+- Ensures decimal precision (e.g., 1.5 for Tea, 2.0 for Coffee)
+- After applying the updated transformation, only 37 invalid entries remained, primarily due to rows where supporting fields like quantity or total_spent were still invalid
 
-###🛠️ Final Repair Logic (for price_per_unit):
+### 🛠️ Final Repair Logic (for price_per_unit):
 
 ```sql
 CASE 
@@ -259,31 +259,36 @@ CASE
 END AS price_per_unit
 ```
 
-📊 Post-Transformation Summary
-Stage	Count
-Invalid values before transformation	482
-Remaining invalid values after transformation	37
-Decimal precision restored (e.g., Tea = 1.5)	✅ Confirmed
+### 📊 Post-Transformation Summary
+
+| Stage                                      | Count        |
+|-------------------------------------------|--------------|
+| Invalid values before transformation       | 482          |
+| Remaining invalid values after transformation | 37           |
+| Decimal precision restored (e.g., Tea = 1.5) | ✅ Confirmed |
 
 ---
 
-###🏪 Week 2.10: Location Cleaning & Inference
+### 🏪 Week 2.10: Location Cleaning & Inference
 
--The location column originally contained 3,143 invalid or missing entries ('ERROR', 'UNKNOWN', '', or NULL)
--Initial inference logic used combinations of item and payment_method to map to either 'In-store' or 'Takeaway' based on dominant transaction patterns
--After first pass repair, 1,705 rows were corrected using this logic
--A second analysis of remaining null rows highlighted potential to infer location using a safe combination of item and price_per_unit
+- The location column originally contained 3,143 invalid or missing entries ('ERROR', 'UNKNOWN', '', or NULL)
+- Initial inference logic used combinations of item and payment_method to map to either 'In-store' or 'Takeaway' based on dominant transaction patterns
+- After first pass repair, 1,705 rows were corrected using this logic
+- A second analysis of remaining null rows highlighted potential to infer location using a safe combination of item and price_per_unit
 
-For example:
-Tea with price 1.5 → Takeaway
-Cake with price 3.0 → In-store
-Cookie with price 1.0 → Takeaway
+### 🧠 Inference Examples
 
--To avoid casting errors, price fields were validated using regex (~ '^\d+(\.\d+)?$') before conversion
--Final logic preserves clean values and applies inference only where all supporting fields are present and clean
--After applying both inference strategies, only 442 rows remain with unknown location, primarily due to insufficient supporting data
+| Item   | Price Per Unit | Inferred Location |
+|--------|----------------|-------------------|
+| Tea    | 1.5            | Takeaway          |
+| Cake   | 3.0            | In-store          |
+| Cookie | 1.0            | Takeaway          |
 
-###📊 Most Common Remaining Null Patterns (Sample):
+- To avoid casting errors, price fields were validated using regex (~ '^\d+(\.\d+)?$') before conversion
+- Final logic preserves clean values and applies inference only where all supporting fields are present and clean
+- After applying both inference strategies, only 442 rows remain with unknown location, primarily due to insufficient supporting data
+
+### 📊 Most Common Remaining Null Patterns (Sample):
 
 | Item   | Payment Method | Price Per Unit | Count |
 |--------|----------------|----------------|-------|
@@ -296,7 +301,7 @@ Cookie with price 1.0 → Takeaway
 | (null) | (null)          | (null)         | …     |
 
 
-###🛠️ Final Repair Logic (Excerpt):
+### 🛠️ Final Repair Logic (Excerpt):
 ```sql
 CASE
   WHEN (location IS NULL OR location IN ('', 'UNKNOWN', 'ERROR'))
@@ -324,21 +329,21 @@ END AS location
 ```
 ---
 
-### Week 2.11: Item Cleaning & Inference
+### 🛠️ Week 2.11: Item Cleaning & Inference
 
--The item column initially had 969 invalid or missing entries ('ERROR', 'UNKNOWN', '', or NULL)
--Early attempts at fixing item using price_per_unit failed due to:
--Implicit casting issues (e.g., comparing TEXT with NUMERIC)
--Overwriting of valid values and incorrect assumptions
--Analysis revealed dual-mapping cases (e.g., price_per_unit = 3.0 could be Cake or Juice) and safe cases (e.g., 1.0 is always Cookie)
--A robust repair strategy was developed using safe patterns with explicit numeric casting and contextual inference:
--Used payment_method and location alongside price_per_unit to disambiguate values
--Ensured no assumptions were made about existing column data types — all comparisons safely casted
--After applying the improved logic:
--item column reduced from 969 bad values to just 195
--Remaining nulls correspond to rows with insufficient supporting context
+- The item column initially had 969 invalid or missing entries ('ERROR', 'UNKNOWN', '', or NULL)
+- Early attempts at fixing item using price_per_unit failed due to:
+- Implicit casting issues (e.g., comparing TEXT with NUMERIC)
+- Overwriting of valid values and incorrect assumptions
+- Analysis revealed dual-mapping cases (e.g., price_per_unit = 3.0 could be Cake or Juice) and safe cases (e.g., 1.0 is always Cookie)
+- A robust repair strategy was developed using safe patterns with explicit numeric casting and contextual inference:
+- Used payment_method and location alongside price_per_unit to disambiguate values
+- Ensured no assumptions were made about existing column data types — all comparisons safely casted
+- After applying the improved logic:
+- item column reduced from 969 bad values to just 195
+- Remaining nulls correspond to rows with insufficient supporting context
 
-###🛠️ Final Case repair Logic (Excerpt):
+### 🛠️ Final Case repair Logic (Excerpt):
 ```sql
 CASE
   -- Dual: Cake vs Juice
@@ -472,10 +477,10 @@ This represents a **massive reduction** in null counts—especially for fields t
 
 ---
 
-###📊 Week 3: Exploratory SQL Analysis & Power BI Planning
+### 📊 Week 3: Exploratory SQL Analysis & Power BI Planning
 After successfully building the fully cleaned and enriched final_cafe_sales table, we proceeded with SQL-based business analysis. This phase focused on identifying sales trends, customer behavior, and preparing the foundation for visualizations in Power BI.
 
-###🛍️ Top 5 Best-Selling Items by Quantity
+### 🛍️ Top 5 Best-Selling Items by Quantity
 
 ```sql
 SELECT item, SUM(quantity) AS total_quantity
@@ -486,7 +491,7 @@ LIMIT 5;
 Insight: Identifies the most popular items across all stores based on total units sold.
 ```
 
-###📈 Monthly Revenue Trend
+### 📈 Monthly Revenue Trend
 
 ```sql
 SELECT DATE_TRUNC('month', transaction_date) AS month, SUM(total_spent) AS monthly_revenue
@@ -496,7 +501,7 @@ ORDER BY month;
 Insight: Tracks revenue trends over time to support decisions around marketing campaigns, seasonal demands, and promotions.
 ```
 
-###📦 Category-Wise Sales and Revenue
+### 📦 Category-Wise Sales and Revenue
 
 ```sql
 SELECT category, SUM(quantity) AS total_units_sold, SUM(total_spent) AS total_revenue
@@ -506,7 +511,7 @@ ORDER BY total_revenue DESC;
 Insight: Breaks down performance by product category, helping identify which categories generate the highest sales and revenue.
 ```
 
-###💳 Payment Preferences by Store Type
+### 💳 Payment Preferences by Store Type
 
 ```sql
 SELECT store_type, payment_method, COUNT(*) AS transactions
@@ -516,7 +521,7 @@ ORDER BY store_type, transactions DESC;
 Insight: Reveals how customer payment preferences (Cash, Credit Card, Digital Wallet) differ between Urban and Suburban stores.
 ```
 
-###🏙️ Top Performing City by Revenue
+### 🏙️ Top Performing City by Revenue
 
 ```sql
 SELECT city, SUM(total_spent) AS total_city_sales
