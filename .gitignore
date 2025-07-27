@@ -1,5 +1,36 @@
-etl.log
-etl_scheduler.log
-.env
+
+# Python artifacts
 __pycache__/
-*.pyc
+*.py[cod]
+
+# Jupyter Notebooks (if used)
+.ipynb_checkpoints/
+
+# Environment
+.env
+*.env
+
+# Logs
+logs/
+*.log
+
+# Power BI Auto-generated files
+*.pbix~
+*.tmp
+
+# System files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# VS Code
+.vscode/
+.settings/
+
+# Compiled files
+*.sqlite3
+*.db
+*.bak
+
+# Cache
+.cache/

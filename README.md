@@ -1,6 +1,7 @@
-# ☕ Café Sales ETL Enhancement Project
 
-A fully hands-on, real-world simulation of an end-to-end **ETL pipeline** for cleaning and transforming café sales data using SQL, Python, Docker, and Power BI — designed to demonstrate data engineering best practices and automation.
+# ☕ Café Sales ETL Project
+
+A complete end-to-end data engineering project showcasing raw data ingestion, SQL-based data repair, Python orchestration, job scheduling, and Power BI visualization — all within a modular, production-ready structure.
 
 ---
 
@@ -32,68 +33,97 @@ This project is part of my guided learning journey to become a Cloud ETL Enginee
 ## 🗂️ Project Structure
 
 ```plaintext
-.
-├── etl_cafe_sales.py                  # Python ETL script
-├── Dockerfile                         # Docker setup
-├── requirements.txt                   # Python dependencies
-├── run_etl.bat                        # Local ETL runner
-├── run_etl_cloud.bat                  # ETL runner for cloud setup
-├── dirty_cafe_sales.csv               # Raw transactional data
-├── product_info.csv                   # Enriched product info
-├── store_info.csv                     # Enriched store info
-├── SQL_Enhancement/
-│   └── PowerBI Dashboard/
-│   │ 	├── CafeSalesDashboard.pbix       # Final Power BI dashboard
-│   │   ├── ETL_Cafe_Sales_Dashboard.pbix # Intermediate version
-│   │    └── README.md  
-│   ├── 01_create_raw_table.sql
-│   ├── 02_create_staging_table.sql
-│   ├── 03_validation_queries.sql
-│   ├── data_architecture_cafe_sales.png # Architecture diagram
-│   └── README.md                        # Power BI folder documentation
-└── README.md                            # (You are here)
+ETL_PROJECT/
+│
+├── .gitignore → Tracks excluded files
+├── requirements.txt → Python dependencies
+├── logs/ → Log files from scheduled runs
+├── cafe-sales-etl/ → Core pipeline logic
+│ ├── airflow/ → (Upcoming) Apache Airflow DAGs
+│ ├── docker/ → Dockerfile for containerized ETL
+│ ├── power_bi/ → Dashboards (.pbix) and visuals
+│ ├── raw data/ → Raw CSV files
+│ ├── scheduling/ → Batch files for job automation
+│ ├── scripts/ → Python-based orchestrators
+│ └── sql_etl/ → Raw and staging SQL transformation logic
+├── SQL_Enhancement/ → Deep cleaning using SQL CTEs
+│ ├── README.md → In-depth explanation of logic
+│ ├── data_architecture_cafe_sales.png
+│ └── power_bi/                          
+│# (You are here)
 ```
 ---
 
-## 🔁 ETL Flow
+## 🧪 ETL Approaches
 
-1. **Extract**
-   - Load raw transactional data from `dirty_cafe_sales.csv`
-2. **Transform**
-   - Advanced data cleaning via SQL CTEs (item, price, location, payment method)
-   - Quantity/price imputation using calculated logic
-   - Handle `ERROR`, `UNKNOWN`, nulls with contextual repairs
-3. **Load**
-   - Final clean data inserted into `staging_cafe_sales` in PostgreSQL
-4. **Schedule**
-   - Automated batch execution via Task Scheduler
-5. **Visualize**
-   - Build insights in Power BI with joins to `store_info.csv` and `product_info.csv`
+### 1. 🐍 Python-Only Pipeline
+- Implemented in `scripts/run_python_etl.py`
+- Extracts → Transforms → Loads via pandas + psycopg2
+- Ideal for light-to-moderate data workloads
+
+### 2. 🧠 SQL-Based Modular ETL 
+- Powerful contextual data repair using CTEs
+- Multi-layered logic: quantity, price, item, location, and payment inference
+- Final table: `staging_cafe_sales`
+- Explained in `SQL_Enhancement/README.md`
 
 ---
 
-## 📈 Power BI Dashboard
+### 🧪 ETL Pipeline Flow
 
-- Visual KPIs: total revenue, sales trend, top-selling items
-- Category & store-level breakdown
-- Dashboard connected to `staging_cafe_sales` via PostgreSQL
-- `.pbix` files available under `PowerBI Dashboard/`
+```text
+[Raw CSV Data]
+     ↓
+[SQL: raw_cafe_sales table]
+     ↓
+[SQL CTEs: staging_cafe_sales]
+     ↓
+[Validation Queries]
+     ↓
+[Python: Orchestrates SQL execution]
+```
+---
+
+### 🚀 Run the ETL
+
+Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+Run the SQL-based ETL pipeline:
+```bash
+python cafe-sales-etl/scripts/run_sql_etl.py
+```
 
 ---
 
-## 🌐 Architecture Diagram
+## 📊 Business Insights
 
-See `data_architecture_cafe_sales.png` for a simplified layered view of the ETL pipeline (Bronze ➝ Silver ➝ Gold).
+Power BI dashboards provide:
+- Top-selling items
+- Revenue trend over time
+- Category-wise sales
+- Payment preference by store type
+- Best-performing cities
+
+See: [`cafe-sales-etl/power_bi/`](cafe-sales-etl/power_bi/)
 
 ---
 
-## 🧪 Learning Highlights
+## ⏰ Automation & Scheduling
 
-✅ Deep dive into SQL CTEs and CASE logic  
-✅ Hands-on Dockerization of Python ETL jobs  
-✅ Custom transformation logic for ambiguous data  
-✅ GitHub version control with multi-week enhancements  
-✅ Data visualization & business insights in Power BI  
+- Local execution: `run_etl.bat`
+- Cloud-compatible version: `run_etl_cloud.bat`
+- Output is logged in `logs/`
+
+---
+
+## 🔄 Next Steps
+
+- ✅ Integrate Python scripts to execute SQL logic
+- 🚀 Orchestrate full flow using Apache Airflow
+- 🧼 Maintain separation between raw, cleaned, and final tables
 
 ---
 
@@ -103,6 +133,7 @@ See `data_architecture_cafe_sales.png` for a simplified layered view of the ETL 
 🌍 Hyderabad, India  
 🎯 Aspiring Cloud ETL Engineer  
 🔗 GitHub: [Aakash Pal](https://github.com/Aakash-pal)
+- This project was built to gain hands-on experience in real-world data engineering practices — focusing on raw data challenges, SQL mastery, and visual storytelling.
 
 ---
 
