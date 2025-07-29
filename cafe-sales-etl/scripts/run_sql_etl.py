@@ -1,50 +1,62 @@
+import pandas as pd
 import psycopg2
 import os
 
+
 # Define your PostgreSQL credentials
-DB_HOST = "localhost"
-DB_PORT = "5432"
-DB_NAME = "cafe_sales"
-DB_USER = "postgres"
-DB_PASS = "mysecretpassword"  # Update if your password is different
+DB_CONFIG = {
+    "host" :  "localhost",
+    "port" :  "5432",
+    "dbname" :  "cafe_sales",
+    "user" :  "postgres",
+    "password" :  "mysecretpassword"  # Update if your password is different
+}
+# Path to your SQL scripts
+SQL_DIR = os.path.join("cafe-sales-etl", "sql_etl")
+RAW_DATA_PATH = os.path.join("cafe-sales-etl", "raw data", "dirty_cafe_sales.csv")
 
-# Path to SQL files
-SQL_FOLDER = os.path.join(os.path.dirname(__file__), '..', 'sql_etl')
-sql_files = [
-    "01_create_raw_table.sql",
-    "02_create_staging_table.sql",
-    "03_validation_queries.sql"  # optional, 
-]
+def connect_db():
+    return psycopg2.connect(**DB_CONFIG)
 
-def run_sql_file(cursor, file_path):
-    print(f"🔹 Running {os.path.basename(file_path)}...")
-    with open(file_path, 'r', encoding='utf-8') as file:
-        sql = file.read()
-        cursor.execute(sql)
-        print("✅ Done.")
+def load_csv_to_db(conn):
+    df = pd.read_csv(RAW_DATA_PATH)
 
-def main():
-    try:
-        conn = psycopg2.connect(
-            host=DB_HOST,
-            port=DB_PORT,
-            dbname=DB_NAME,
-            user=DB_USER,
-            password=DB_PASS
-        )
-        conn.autocommit = True
-        cursor = conn.cursor()
+    # Replace invalid strings with NULLs for PostgreSQL compatibility
+    df = df.where(pd.notnull(df), None)
 
-        for sql_file in sql_files:
-            full_path = os.path.join(SQL_FOLDER, sql_file)
-            run_sql_file(cursor, full_path)
+    # Insert data row-by-row using psycopg2
+    with conn.cursor() as cur:
+        for row in df.itertuples(index=False):
+            cur.execute("""
+                INSERT INTO raw_cafe_sales (
+                    transaction_id, transaction_date, location, payment_method,
+                    item, quantity, price_per_unit, total_spent
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, tuple(row))
+    conn.commit()
+    print("✅ Loaded raw data into raw_cafe_sales table")
 
-        cursor.close()
-        conn.close()
-        print("\n🎉 ETL SQL pipeline completed successfully!")
-
-    except Exception as e:
-        print(f"❌ Error: {e}")
+def run_sql_files(conn):
+    for sql_file in ["02_create_staging_table.sql", "03_validation_queries.sql"]:
+        path = os.path.join(SQL_DIR, sql_file)
+        print(f"🔹 Running {sql_file}...")
+        with open(path, "r") as file:
+            sql = file.read()
+        with conn.cursor() as cur:
+            cur.execute(sql)
+        conn.commit()
+        print(f"✅ Done.")
 
 if __name__ == "__main__":
-    main()
+    try:
+        conn = connect_db()
+        print("📥 Loading raw CSV data...")
+        load_csv_to_db(conn)
+        run_sql_files(conn)
+        print("\n🎉 ETL SQL pipeline completed successfully!")
+    except Exception as e:
+        print("❌ Error:", e)
+    finally:
+        if conn:
+            conn.close()
