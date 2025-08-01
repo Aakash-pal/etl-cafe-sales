@@ -1,62 +1,73 @@
-import pandas as pd
 import psycopg2
+from psycopg2 import sql
 import os
 
+# Set up database connection parameters
+DB_NAME = "cafe_sales"
+DB_USER = "postgres"
+DB_PASSWORD = "mysecretpassword" 
+DB_HOST = "localhost"
+DB_PORT = "5432"
 
-# Define your PostgreSQL credentials
-DB_CONFIG = {
-    "host" :  "localhost",
-    "port" :  "5432",
-    "dbname" :  "cafe_sales",
-    "user" :  "postgres",
-    "password" :  "mysecretpassword"  # Update if your password is different
-}
-# Path to your SQL scripts
-SQL_DIR = os.path.join("cafe-sales-etl", "sql_etl")
-RAW_DATA_PATH = os.path.join("cafe-sales-etl", "raw data", "dirty_cafe_sales.csv")
+# File paths
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+RAW_CSV_PATH = os.path.join(BASE_DIR, "raw data", "dirty_cafe_sales.csv")
+SQL_DIR = os.path.join(BASE_DIR, "sql_etl")
 
-def connect_db():
-    return psycopg2.connect(**DB_CONFIG)
+# Helper function to run a SQL file
+def run_sql_file(cursor, filepath):
+    with open(filepath, 'r', encoding='utf-8') as file:
+        sql_script = file.read()
+        cursor.execute(sql_script)
 
-def load_csv_to_db(conn):
-    df = pd.read_csv(RAW_DATA_PATH)
+def main():
+    try:
+        print("📥 Loading raw CSV data...")
 
-    # Replace invalid strings with NULLs for PostgreSQL compatibility
-    df = df.where(pd.notnull(df), None)
+        conn = psycopg2.connect(
+            dbname=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            host=DB_HOST,
+            port=DB_PORT
+        )
+        conn.autocommit = True
+        cur = conn.cursor()
+        # Step 1: Drop and recreate raw_cafe_sales table
+        run_sql_file(cur, os.path.join(SQL_DIR, "01_create_raw_table.sql"))
+        # Step 2: Load data using correct column mapping
+        with open(RAW_CSV_PATH, 'r', encoding='utf-8') as f:
+            copy_sql = """
+            COPY raw_cafe_sales (
+                transaction_id,
+                item,
+                quantity,
+                price_per_unit,
+                total_spent,
+                payment_method,
+                location,
+                transaction_date
+            )
+            FROM STDIN WITH CSV HEADER DELIMITER ',' NULL '' ENCODING 'UTF8';
+            """
+            cur.copy_expert(copy_sql, f)
+        print("✅ Loaded raw data into raw_cafe_sales table")
 
-    # Insert data row-by-row using psycopg2
-    with conn.cursor() as cur:
-        for row in df.itertuples(index=False):
-            cur.execute("""
-                INSERT INTO raw_cafe_sales (
-                    transaction_id, transaction_date, location, payment_method,
-                    item, quantity, price_per_unit, total_spent
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            """, tuple(row))
-    conn.commit()
-    print("✅ Loaded raw data into raw_cafe_sales table")
+        # Step 3: Run transformation and validation queries
+        sql_files = [
+            "02_create_staging_table.sql",
+            "03_validation_queries.sql"
+        ]
+        for sql_file in sql_files:
+            print(f"🔹 Running {sql_file}...")
+            run_sql_file(cur, os.path.join(SQL_DIR, sql_file))
+            print("✅ Done.")
+        cur.close()
+        conn.close()
+        print("\n🎉 ETL SQL pipeline completed successfully!")
 
-def run_sql_files(conn):
-    for sql_file in ["02_create_staging_table.sql", "03_validation_queries.sql"]:
-        path = os.path.join(SQL_DIR, sql_file)
-        print(f"🔹 Running {sql_file}...")
-        with open(path, "r") as file:
-            sql = file.read()
-        with conn.cursor() as cur:
-            cur.execute(sql)
-        conn.commit()
-        print(f"✅ Done.")
+    except Exception as e:
+        print(f"❌ Error: {e}")
 
 if __name__ == "__main__":
-    try:
-        conn = connect_db()
-        print("📥 Loading raw CSV data...")
-        load_csv_to_db(conn)
-        run_sql_files(conn)
-        print("\n🎉 ETL SQL pipeline completed successfully!")
-    except Exception as e:
-        print("❌ Error:", e)
-    finally:
-        if conn:
-            conn.close()
+    main()
