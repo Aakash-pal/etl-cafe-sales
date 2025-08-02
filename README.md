@@ -71,17 +71,13 @@ ETL_PROJECT/
 
 ### 🧪 ETL Pipeline Flow
 
-```text
-[Raw CSV Data]
-     ↓
-[SQL: raw_cafe_sales table]
-     ↓
-[SQL CTEs: staging_cafe_sales]
-     ↓
-[Validation Queries]
-     ↓
-[Python: Orchestrates SQL execution]
+```flowchart TD
+    A[dirty_cafe_sales.csv] --> B[Python: run_sql_etl.py]
+    B --> C[raw_cafe_sales (raw table)]
+    C --> D[staging_cafe_sales (cleaned via SQL CTEs)]
+    D --> E[Data available for Power BI / Reporting]
 ```
+
 ---
 
 ### 🚀 Run the ETL
@@ -123,7 +119,31 @@ See: [`cafe-sales-etl/power_bi/`](cafe-sales-etl/power_bi/)
 
 - ✅ Integrate Python scripts to execute SQL logic
 - 🚀 Orchestrate full flow using Apache Airflow
-- 🧼 Maintain separation between raw, cleaned, and final tables
+- 🧼 Continue documenting testing, validation, and enhancements
+- 🔍Investigate the discrepancy in null counts between SQL-only vs Python+SQL flow
+
+---
+
+## 🧩 Python + SQL Hybrid ETL Integration (Week 4)
+
+- To modularize and automate our SQL-based transformation logic, we've introduced a Python script that orchestrates the SQL ETL pipeline:
+---
+
+## 🛠️ New Components Introduced
+
+- scripts/run_sql_etl.py: Python driver that:Loads raw CSV (dirty_cafe_sales.csv) into PostgreSQL (raw_cafe_sales)
+- Executes the modular SQL logic (sql_etl/*.sql) to clean and transform the data
+- Logs progress and errors to the console
+
+---
+
+## ✅ Latest Validation Results
+
+- Raw data was successfully loaded into raw_cafe_sales using Python.
+- SQL scripts executed cleanly via Python.
+- Sanity checks confirmed valid data in staging_cafe_sales, though:
+- 163 rows remain with nulls post-Python execution (to be reviewed).
+- SQL-only pipeline previously had fewer nulls, suggesting slight divergence in the Python-driven flow.
 
 ---
 
