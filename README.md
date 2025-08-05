@@ -35,23 +35,52 @@ This project is part of my guided learning journey to become a Cloud ETL Enginee
 ```plaintext
 ETL_PROJECT/
 │
-├── .gitignore → Tracks excluded files
-├── requirements.txt → Python dependencies
-├── logs/ → Log files from scheduled runs
-├── cafe-sales-etl/ → Core pipeline logic
-│ ├── airflow/ → (Upcoming) Apache Airflow DAGs
-│ ├── docker/ → Dockerfile for containerized ETL
-│ ├── power_bi/ → Dashboards (.pbix) and visuals
-│ ├── raw data/ → Raw CSV files
-│ ├── scheduling/ → Batch files for job automation
-│ ├── scripts/ → Python-based orchestrators
-│ └── sql_etl/ → Raw and staging SQL transformation logic
-├── SQL_Enhancement/ → Deep cleaning using SQL CTEs
-│ ├── README.md → In-depth explanation of logic
-│ ├── data_architecture_cafe_sales.png
-│ └── power_bi/                          
-│# (You are here)
+├── .gitignore                        # Tracks excluded files
+├── requirements.txt                 # Python dependencies
+├── etl.log                          # ETL run logs
+├── etl_scheduler.log                # Logs for scheduled runs
+├── FolderStructure.txt             # Describes project layout
+├── README.md                        # Project overview and progress
+│
+├── cafe-sales-etl/                  # Core ETL pipeline logic
+│   ├── airflow/                     # Apache Airflow DAGs & config
+│   │   ├── dags/                    # Folder to hold DAG scripts (To be added)
+│   │   ├── logs/                    # Auto-generated Airflow logs
+│   │   ├── plugins/                 # Custom operators/plugins (optional)
+│   │   ├── docker-compose.yml       # Compose config for Airflow services
+│   │   └── .env                     # Environment variables (e.g., AIRFLOW_UID)
+│   │
+│   ├── docker/                      # Dockerfile for containerized ETL
+│   │   └── Dockerfile
+│   │
+│   ├── power_bi/                    # Power BI dashboards & visuals
+│   │   ├── CafeSalesDashboard.pbix
+│   │   ├── ETL_Cafe_Sales_Dashboard.pbix
+│   │   └── README.md
+│   │
+│   ├── raw data/                    # Raw input data files
+│   │   ├── dirty_cafe_sales.csv
+│   │   ├── product_info.csv
+│   │   └── store_info.csv
+│   │
+│   ├── scheduling/                  # Batch files for automation
+│   │   ├── run_etl.bat
+│   │   └── run_etl_cloud.bat
+│   │
+│   ├── scripts/                     # Python orchestrators
+│   │   └── run_sql_etl.py
+│   │
+│   └── sql_etl/                     # SQL ETL logic: raw → staging
+│       ├── 01_create_raw_table.sql
+│       ├── 02_create_staging_table.sql
+│       └── 03_validation_queries.sql
+│
+└── SQL_Enhancement/                 # Deep SQL-based data cleaning
+    ├── README.md                    # In-depth documentation
+    ├── data_architecture_cafe_sales.png
+    └── PowerBI Dashboard/          # Cleaned dashboard (optional folder)
 ```
+
 ---
 
 ## 🧪 ETL Approaches
@@ -144,6 +173,32 @@ See: [`cafe-sales-etl/power_bi/`](cafe-sales-etl/power_bi/)
 - Sanity checks confirmed valid data in staging_cafe_sales, though:
 - 163 rows remain with nulls post-Python execution (to be reviewed).
 - SQL-only pipeline previously had fewer nulls, suggesting slight divergence in the Python-driven flow.
+
+---
+
+### 🌀 Airflow Integration – SQL ETL Orchestration
+- This project includes a fully functional Apache Airflow setup for orchestrating the SQL-based ETL pipeline.
+
+### ✅ Features
+- Triggers run_sql_etl.py which:
+- Loads raw CSV into PostgreSQL
+- Executes all SQL-based cleaning logic using modular scripts
+- Uses BashOperator in Airflow DAG
+
+### 🚀 How to Use
+- Start Airflow environment
+
+```plaintext
+cd cafe-sales-etl/airflow
+docker-compose up --build
+```
+- Access Airflow Web UI
+- Visit: http://localhost:8081
+- Create User and enter the Login credentials (default):
+- Trigger DAG
+- Go to the sql_etl_pipeline DAG
+- Turn it on
+- Click ▶ to trigger the job
 
 ---
 
