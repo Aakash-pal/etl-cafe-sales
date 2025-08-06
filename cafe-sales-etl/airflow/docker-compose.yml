@@ -14,7 +14,7 @@ services:
     image: apache/airflow:2.9.1
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:mysecretpassword@host.docker.internal:5432/cafe_sales
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "True"
     depends_on:
       - postgres
@@ -24,6 +24,10 @@ services:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./plugins:/opt/airflow/plugins
+      - ../scripts:/opt/airflow/sql_etl/scripts
+      - ../sql_etl:/opt/airflow/sql_etl/sql_etl
+      - ../raw data:/opt/airflow/sql_etl/raw_data
+
     command: webserver
     restart: always
 
@@ -31,13 +35,17 @@ services:
     image: apache/airflow:2.9.1
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:mysecretpassword@host.docker.internal:5432/cafe_sales
     depends_on:
       - postgres
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./plugins:/opt/airflow/plugins
+      - ../scripts:/opt/airflow/sql_etl/scripts
+      - ../sql_etl:/opt/airflow/sql_etl/sql_etl
+      - ../raw data:/opt/airflow/sql_etl/raw_data
+
     command: scheduler
     restart: always
 

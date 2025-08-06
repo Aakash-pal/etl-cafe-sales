@@ -202,6 +202,42 @@ docker-compose up --build
 
 ---
 
+### 🌀 Airflow Integration: SQL-Based ETL Pipeline
+- This section introduces Apache Airflow to orchestrate the SQL-based ETL workflow for the Café Sales dataset.
+
+## ✅ Features Implemented
+- Apache Airflow setup using Docker Compose
+- Airflow DAG that triggers a Python script to:
+- Load raw data into the raw_cafe_sales table
+- Run advanced SQL-based transformations to create staging_cafe_sales
+- Execute validation queries to log data quality
+- Custom PostgreSQL Connection: Named etl_postgres, defined via Airflow UI
+- Correct Docker volume mounts for seamless access to:
+- Raw data (raw_data/)
+- SQL scripts (sql_etl/)
+- Python script (scripts/run_sql_etl.py)
+
+##🧪 Transformation Validation
+- To verify the transformation logic:
+- A test transaction (TXN_9999999) was added to dirty_cafe_sales.csv with partial data.
+- After triggering the DAG:
+- The ETL pipeline inferred missing values using SQL logic.
+- Transformed output confirmed expected results.
+
+### 🐳 Docker Setup Overview
+
+# docker-compose.yml (excerpt)
+
+services:
+  webserver:
+    ports:
+      - "8081:8080"
+    volumes:
+      - ../scripts:/opt/airflow/sql_etl/scripts
+      - ../sql_etl:/opt/airflow/sql_etl/sql_etl
+      - ../raw data:/opt/airflow/sql_etl/raw_data
+
+---
 ## 🙋‍♀️ About Me
 
 👩‍💻 **Aakash Pal**  

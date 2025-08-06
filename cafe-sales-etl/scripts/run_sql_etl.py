@@ -11,7 +11,7 @@ DB_PORT = "5432"
 
 # File paths
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RAW_CSV_PATH = os.path.join(BASE_DIR, "raw data", "dirty_cafe_sales.csv")
+RAW_CSV_PATH = "/opt/airflow/sql_etl/raw_data/dirty_cafe_sales.csv"
 SQL_DIR = os.path.join(BASE_DIR, "sql_etl")
 
 # Helper function to run a SQL file
