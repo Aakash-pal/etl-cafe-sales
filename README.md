@@ -1,241 +1,129 @@
+<!-- Banner Image -->
+<p align="center">
+  <img src="SQL_Enhancement/data_architecture_cafe_sales.png" alt="ETL Project Architecture" width="700"/>
+</p>
 
-# ☕ Café Sales ETL Project
+# ☕ Cafe Sales ETL Pipeline
 
-A complete end-to-end data engineering project showcasing raw data ingestion, SQL-based data repair, Python orchestration, job scheduling, and Power BI visualization — all within a modular, production-ready structure.
-
----
-
-## 📌 Project Summary
-
-This project is part of my guided learning journey to become a Cloud ETL Engineer. It demonstrates how to:
-
-- Design modular ETL pipelines
-- Perform data cleaning using SQL and Python
-- Use PostgreSQL as the data warehouse backend
-- Automate and containerize ETL tasks
-- Build business-ready dashboards in Power BI
+A modular ETL project designed to clean and transform a messy café transaction dataset using **pure SQL**, **Airflow**, and **Power BI** for analytics.  
+This end-to-end pipeline simulates real-world dirty data cleanup, automation, and dashboarding — all with **minimal Python** and **maximum SQL logic**.
 
 ---
 
-## 🧱 Tech Stack
+## 🚀 Overview
 
-| Tool | Purpose |
-|------|---------|
-| **Python (pandas, psycopg2)** | ETL script logic |
-| **PostgreSQL** | Database for staging and cleaned tables |
-| **SQL (CTEs & CASE logic)** | Advanced data transformations |
-| **Docker** | Containerize and deploy ETL job |
-| **Windows Task Scheduler** | Automation and scheduling |
-| **Power BI** | Data visualization |
+This project started as a CSV cleanup exercise and evolved into a structured, production-style ETL pipeline:
+
+- Ingests messy sales data from `dirty_cafe_sales.csv`
+- Performs deep cleaning using **PostgreSQL CTEs**
+- Automates transformations via **Apache Airflow**
+- Visualizes results through **Power BI dashboards**
+
+Whether you're learning data engineering, building a portfolio, or testing out orchestration tools — this project is designed to showcase core concepts clearly.
 
 ---
 
-## 🗂️ Project Structure
+## 🧰 Tech Stack
+
+| Layer              | Tools Used                         |
+|--------------------|------------------------------------|
+| Orchestration      | Apache Airflow (LocalExecutor)     |
+| Data Cleaning      | PostgreSQL (via SQL scripts)       |
+| Python Integration | psycopg2, Docker                   |
+| Dashboarding       | Power BI                           |
+| Scheduling         | Windows Task Scheduler (Archived)  |
+| Version Control    | Git, GitHub                        |
+
+---
+
+## 📂 Project Structure
 
 ```plaintext
 ETL_PROJECT/
 │
-├── .gitignore                        # Tracks excluded files
-├── requirements.txt                 # Python dependencies
-├── etl.log                          # ETL run logs
-├── etl_scheduler.log                # Logs for scheduled runs
-├── FolderStructure.txt             # Describes project layout
-├── README.md                        # Project overview and progress
+├── cafe-sales-etl/
+│   ├── airflow/            → Apache Airflow DAGs, docker-compose, configs
+│   ├── docker/             → Dockerfile to containerize pipeline
+│   ├── raw data/           → Input CSV files (dirty_cafe_sales.csv)
+│   ├── scheduling/         → Batch files for legacy scheduling (archived)
+│   ├── scripts/            → Main orchestrator `run_sql_etl.py`, archived `etl_cafe_sales.py`
+│   ├── sql_etl/            → Core SQL cleaning scripts
+│   └── power_bi/           → Dashboards and reports
 │
-├── cafe-sales-etl/                  # Core ETL pipeline logic
-│   ├── airflow/                     # Apache Airflow DAGs & config
-│   │   ├── dags/                    # Folder to hold DAG scripts (To be added)
-│   │   ├── logs/                    # Auto-generated Airflow logs
-│   │   ├── plugins/                 # Custom operators/plugins (optional)
-│   │   ├── docker-compose.yml       # Compose config for Airflow services
-│   │   └── .env                     # Environment variables (e.g., AIRFLOW_UID)
-│   │
-│   ├── docker/                      # Dockerfile for containerized ETL
-│   │   └── Dockerfile
-│   │
-│   ├── power_bi/                    # Power BI dashboards & visuals
-│   │   ├── CafeSalesDashboard.pbix
-│   │   ├── ETL_Cafe_Sales_Dashboard.pbix
-│   │   └── README.md
-│   │
-│   ├── raw data/                    # Raw input data files
-│   │   ├── dirty_cafe_sales.csv
-│   │   ├── product_info.csv
-│   │   └── store_info.csv
-│   │
-│   ├── scheduling/                  # Batch files for automation
-│   │   ├── run_etl.bat
-│   │   └── run_etl_cloud.bat
-│   │
-│   ├── scripts/                     # Python orchestrators
-│   │   └── run_sql_etl.py
-│   │
-│   └── sql_etl/                     # SQL ETL logic: raw → staging
-│       ├── 01_create_raw_table.sql
-│       ├── 02_create_staging_table.sql
-│       └── 03_validation_queries.sql
+├── SQL_Enhancement/        → Extended SQL logic (joins, inference)
+│   ├── README.md           → Explanation of logic and rules
+│   └── data_architecture_cafe_sales.png → Architecture diagram
 │
-└── SQL_Enhancement/                 # Deep SQL-based data cleaning
-    ├── README.md                    # In-depth documentation
-    ├── data_architecture_cafe_sales.png
-    └── PowerBI Dashboard/          # Cleaned dashboard (optional folder)
-```
+├── logs/                   → Logs from scheduled jobs
+├── .gitignore              → Excludes compiled files, logs, etc.
+└── requirements.txt        → Python dependencies
+---
+
+## ⚙️ How It Works
+
+### 1. Raw Import
+- Dirty sales data is loaded into a PostgreSQL raw_cafe_sales table using Python (run_sql_etl.py).
+
+### 2. SQL Cleaning
+- SQL scripts use CTEs to infer missing values like item, quantity, price, location, and payment_method.
+
+### 3. Staging Table
+- Cleaned and inferred data is written to staging_cafe_sales.
+
+### 4. Automation
+- The entire pipeline is containerized using Docker and scheduled via Apache Airflow DAG.
+
+### 5. Analysis
+- Cleaned data is used in Power BI for interactive reporting.
 
 ---
 
-## 🧪 ETL Approaches
+## 📝 Notable Enhancements
 
-### 1. 🐍 Python-Only Pipeline
-- Implemented in `scripts/run_python_etl.py`
-- Extracts → Transforms → Loads via pandas + psycopg2
-- Ideal for light-to-moderate data workloads
+- ✅ Inference rules (e.g., guessing item from price and location)
+- ✅ Context-aware NULL handling
+- ✅ Robust SQL type casting and error filtering
+- ✅ Automated DAG with logs
+- ✅ Validated transformation using test transaction TXN_9999999
 
-### 2. 🧠 SQL-Based Modular ETL 
-- Powerful contextual data repair using CTEs
-- Multi-layered logic: quantity, price, item, location, and payment inference
-- Final table: `staging_cafe_sales`
-- Explained in `SQL_Enhancement/README.md`
+---
+## 📁 Key Files
+
+|File/Folder |	Description |
+|------------|--------------|
+|scripts/run_sql_etl.py	|✅ Main orchestrator using psycopg2|
+|scripts/etl_cafe_sales.py|	🗃️ Archived version from initial setup|
+|sql_etl/*.sql |	Raw and staging SQL logic|
+|power_bi/dashboard.pbix|	Final report visualizing cleaned data|
+|airflow/docker-compose.yml|	Airflow orchestration setup|
+|scheduling/run_etl.bat	| Archived manual trigger method (Windows)|
 
 ---
 
-### 🧪 ETL Pipeline Flow
-
-```flowchart TD
-    A[dirty_cafe_sales.csv] --> B[Python: run_sql_etl.py]
-    B --> C[raw_cafe_sales (raw table)]
-    C --> D[staging_cafe_sales (cleaned via SQL CTEs)]
-    D --> E[Data available for Power BI / Reporting]
-```
+## 🔗 Linked Sections
+- 📊 SQL Enhancement Folder
+- 📈 Power BI Visuals
+- 🗃️ Archived Python Script
 
 ---
 
-### 🚀 Run the ETL
-
-Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-Run the SQL-based ETL pipeline:
-```bash
-python cafe-sales-etl/scripts/run_sql_etl.py
-```
+Modular ETL pipeline project using SQL, Airflow, and Power BI with real-world dirty data.
+## 🧠 What I Learned
+- Writing production-style SQL with CTEs
+- Orchestrating data pipelines via Airflow
+- Debugging Docker and Airflow containers
+- Building traceable and testable ETL flows
+- Structuring a portfolio-ready GitHub project
 
 ---
 
-## 📊 Business Insights
-
-Power BI dashboards provide:
-- Top-selling items
-- Revenue trend over time
-- Category-wise sales
-- Payment preference by store type
-- Best-performing cities
-
-See: [`cafe-sales-etl/power_bi/`](cafe-sales-etl/power_bi/)
-
----
-
-## ⏰ Automation & Scheduling
-
-- Local execution: `run_etl.bat`
-- Cloud-compatible version: `run_etl_cloud.bat`
-- Output is logged in `logs/`
-
----
-
-## 🔄 Next Steps
-
-- ✅ Integrate Python scripts to execute SQL logic
-- 🚀 Orchestrate full flow using Apache Airflow
-- 🧼 Continue documenting testing, validation, and enhancements
-- 🔍Investigate the discrepancy in null counts between SQL-only vs Python+SQL flow
-
----
-
-## 🧩 Python + SQL Hybrid ETL Integration (Week 4)
-
-- To modularize and automate our SQL-based transformation logic, we've introduced a Python script that orchestrates the SQL ETL pipeline:
----
-
-## 🛠️ New Components Introduced
-
-- scripts/run_sql_etl.py: Python driver that:Loads raw CSV (dirty_cafe_sales.csv) into PostgreSQL (raw_cafe_sales)
-- Executes the modular SQL logic (sql_etl/*.sql) to clean and transform the data
-- Logs progress and errors to the console
-
----
-
-## ✅ Latest Validation Results
-
-- Raw data was successfully loaded into raw_cafe_sales using Python.
-- SQL scripts executed cleanly via Python.
-- Sanity checks confirmed valid data in staging_cafe_sales, though:
-- 163 rows remain with nulls post-Python execution (to be reviewed).
-- SQL-only pipeline previously had fewer nulls, suggesting slight divergence in the Python-driven flow.
-
----
-
-### 🌀 Airflow Integration – SQL ETL Orchestration
-- This project includes a fully functional Apache Airflow setup for orchestrating the SQL-based ETL pipeline.
-
-### ✅ Features
-- Triggers run_sql_etl.py which:
-- Loads raw CSV into PostgreSQL
-- Executes all SQL-based cleaning logic using modular scripts
-- Uses BashOperator in Airflow DAG
-
-### 🚀 How to Use
-- Start Airflow environment
-
-```plaintext
-cd cafe-sales-etl/airflow
-docker-compose up --build
-```
-- Access Airflow Web UI
-- Visit: http://localhost:8081
-- Create User and enter the Login credentials (default):
-- Trigger DAG
-- Go to the sql_etl_pipeline DAG
-- Turn it on
-- Click ▶ to trigger the job
-
----
-
-### 🌀 Airflow Integration: SQL-Based ETL Pipeline
-- This section introduces Apache Airflow to orchestrate the SQL-based ETL workflow for the Café Sales dataset.
-
-## ✅ Features Implemented
-- Apache Airflow setup using Docker Compose
-- Airflow DAG that triggers a Python script to:
-- Load raw data into the raw_cafe_sales table
-- Run advanced SQL-based transformations to create staging_cafe_sales
-- Execute validation queries to log data quality
-- Custom PostgreSQL Connection: Named etl_postgres, defined via Airflow UI
-- Correct Docker volume mounts for seamless access to:
-- Raw data (raw_data/)
-- SQL scripts (sql_etl/)
-- Python script (scripts/run_sql_etl.py)
-
-##🧪 Transformation Validation
-- To verify the transformation logic:
-- A test transaction (TXN_9999999) was added to dirty_cafe_sales.csv with partial data.
-- After triggering the DAG:
-- The ETL pipeline inferred missing values using SQL logic.
-- Transformed output confirmed expected results.
-
-### 🐳 Docker Setup Overview
-
-# docker-compose.yml (excerpt)
-
-services:
-  webserver:
-    ports:
-      - "8081:8080"
-    volumes:
-      - ../scripts:/opt/airflow/sql_etl/scripts
-      - ../sql_etl:/opt/airflow/sql_etl/sql_etl
-      - ../raw data:/opt/airflow/sql_etl/raw_data
+## ✅ Changelog
+- Week 1–2: CSV import, raw table, and cleaning logic
+- Week 3–4: Inference logic via SQL + staging table
+- Week 5: Power BI integration
+- Week 6–7: Docker + Task Scheduler (archived)
+- Week 8–9: Airflow integration
+- Week 10–Final: Cleanup, testing, and README polish
 
 ---
 ## 🙋‍♀️ About Me
