@@ -57,6 +57,7 @@ ETL_PROJECT/
 ├── logs/                   → Logs from scheduled jobs
 ├── .gitignore              → Excludes compiled files, logs, etc.
 └── requirements.txt        → Python dependencies
+```
 ---
 
 ## ⚙️ How It Works
