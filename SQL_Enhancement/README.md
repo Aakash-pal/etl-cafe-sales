@@ -39,13 +39,13 @@ This work forms the **core business logic** of the pipeline before analysis and 
 ---
 
 ## 📂 Folder Structure
-SQL_Enhancement/
+```SQL_Enhancement/
 │
 ├── README.md → This file
 ├── data_architecture_cafe_sales.png → Visual overview of the SQL cleaning flow
 ├── power_bi/ → Power BI dashboard using cleaned dataset
 └── *.sql → SQL scripts for table creation, cleaning, and validation
-
+```
 
 ---
 
@@ -57,7 +57,7 @@ SQL_Enhancement/
 
 ---
 
-📆 Project Timeline & Tasks
+## 📆 Project Timeline & Tasks
 Week	Task	Status
 |------|-------------------------------------------------------------- |---------|
 |Week 1|	Create raw_cafe_sales table & import dirty_cafe_sales.csv  |	✅ Completed|
